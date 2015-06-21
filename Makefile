@@ -1,6 +1,6 @@
 CC = gcc
 
-llad_OBJS := obj/llad.o obj/daemon.o
+llad_OBJS := obj/llad.o obj/util.o obj/daemon.o obj/config.o
 llad_LIBS := -lpopt
 
 llad: $(llad_OBJS)

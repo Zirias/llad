@@ -152,25 +152,22 @@ void daemon_daemonize(const char *daemon_name,
 		rc = fscanf(pf, "%d", &pid);
 		fclose(pf);
 
-		if (rc > 0)
+		if (rc < 1 || kill(pid, 0) < 0)
 		{
-		    if (kill(pid, 0) < 0)
+		    daemon_printf_level(LEVEL_WARNING,
+			    "Removing stale pidfile `%s'", pfn);
+		    if (unlink(pfn) < 0)
 		    {
-			daemon_printf_level(LEVEL_WARNING,
-				"Removing stale pidfile `%s'", pfn);
-			if (unlink(pfn) < 0)
-			{
-			    daemon_perror("Error removing pidfile");
-			    exit(EXIT_FAILURE);
-			}
-		    }
-		    else
-		    {
-			daemon_printf_level(LEVEL_ERR,
-				"%s seems to be running, check `%s'.",
-				daemon_name, pfn);
+			daemon_perror("Error removing pidfile");
 			exit(EXIT_FAILURE);
 		    }
+		}
+		else
+		{
+		    daemon_printf_level(LEVEL_ERR,
+			    "%s seems to be running, check `%s'.",
+			    daemon_name, pfn);
+		    exit(EXIT_FAILURE);
 		}
 	    }
 

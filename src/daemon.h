@@ -1,5 +1,5 @@
-#ifndef PITHDR_DAEMON_H
-#define PITHDR_DAEMON_H
+#ifndef LLAD_DAEMON_H
+#define LLAD_DAEMON_H
 
 #include <popt.h>
 

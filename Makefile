@@ -1,8 +1,10 @@
+CC = gcc
+
 llad_OBJS := obj/llad.o obj/daemon.o
 llad_LIBS := -lpopt
 
 llad: $(llad_OBJS)
-	gcc -o $@ $^ $(llad_LIBS)
+	$(CC) -o $@ $^ $(llad_LIBS)
 
 all: llad
 
@@ -14,7 +16,7 @@ obj:
 	mkdir obj
 
 obj/%.o: src/%.c | obj
-	gcc -c -o $@ $<
+	$(CC) -c -o $@ $<
 
 .PHONY: all clean
 

@@ -230,7 +230,11 @@ void daemon_daemonize(const char *daemon_name,
 	daemon_print_level(LEVEL_DEBUG, "Not forking into background.");
     }
 
-    exit(daemon_main(data));
+    rc = daemon_main(data);
+
+    if (daemonize && pfn) unlink(pfn);
+
+    exit(rc);
 }
 
 

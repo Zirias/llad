@@ -142,6 +142,7 @@ void daemon_init(const char *name)
     {
 	daemon_print_level(LEVEL_ERR, "Daemon initialization failed, "
 		"no daemon name given!");
+	exit(EXIT_FAILURE);
     }
 
     daemon_name = name;
@@ -160,6 +161,7 @@ int daemon_daemonize(const daemon_loop daemon_main, void *data)
     {
 	daemon_print_level(LEVEL_ERR, "Can't daemonize, daemon.c was not "
 		"initialized! Call daemon_init() before daemon_daemonize()!");
+	exit(EXIT_FAILURE);
     }
 
     if (!pidfile)

@@ -5,7 +5,7 @@ Linux Log Action Daemon (watch logfiles and take actions on patterns)
 This is work in progress. So far, the tool doesn't do anything useful. This
 README will be updated as soon as llad is actually usable.
 
-# The idea
+## The idea
 
 I have a Linux based router/firewall and once in a while (every few months)
 the NIC driver goes crazy. Networking has to be restarted manually to get it
@@ -19,20 +19,19 @@ daemon for watching any logfile you want (or, multiple logfiles at a time),
 looking for user-defined patterns and taking actions given in a configuration
 file. This is what llad should do in the future.
 
-# Planned features
+## Planned features
 
 - watch any amount of logfiles
 
 - configurable pairs of patterns to look for as perl compatible regular
 expressions and commands to execute when the pattern matches
 
-# Config file sketchup
+## Config file sketchup
 
-[/var/log/messages]
+  [/var/log/messages]
 
-nicwatch = {
-  pattern = "NETDEV\s+WATCHDOG:\s+eth0"
-  command = "restart-network.sh"
-}
-
+  nicwatch = {
+    pattern = "NETDEV\s+WATCHDOG:\s+eth0"
+    command = "restart-network.sh"
+  }
 

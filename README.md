@@ -24,14 +24,14 @@ file. This is what llad should do in the future.
 - watch any amount of logfiles
 
 - configurable pairs of patterns to look for as perl compatible regular
-expressions and commands to execute when the pattern matches
+  expressions and commands to execute when the pattern matches
 
 ## Config file sketchup
 
-  [/var/log/messages]
+	[/var/log/messages]
 
-  nicwatch = {
-    pattern = "NETDEV\s+WATCHDOG:\s+eth0"
-    command = "restart-network.sh"
-  }
+	nicwatch = {
+	  pattern = "NETDEV\s+WATCHDOG:\s+eth0"
+	  command = "restart-network.sh"
+	}
 

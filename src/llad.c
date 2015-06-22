@@ -3,9 +3,11 @@
 #include <popt.h>
 #include <unistd.h>
 
+#include "config.h"
 #include "daemon.h"
 
 static const struct poptOption opts[] = {
+    CONFIG_OPTS
     DAEMON_OPTS
     POPT_AUTOHELP
     POPT_TABLEEND

@@ -6,7 +6,7 @@
 typedef int (*daemon_loop)(void *data);
 
 extern const struct poptOption daemon_opts[];
-#define DAEMON_OPTS {NULL, '\0', POPT_ARG_INCLUDE_TABLE, daemon_opts, 0, "Daemon options:", NULL},
+#define DAEMON_OPTS {NULL, '\0', POPT_ARG_INCLUDE_TABLE, (struct poptOption *)daemon_opts, 0, "Daemon options:", NULL},
 
 enum daemon_levels
 {

@@ -4,5 +4,6 @@
 #include <stdlib.h>
 
 void *lladAlloc(size_t size);
+char *lladCloneString(const char *s);
 
 #endif

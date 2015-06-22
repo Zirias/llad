@@ -133,7 +133,7 @@ loadConfigEntries(FILE *cfg)
 			currentLog = lladAlloc(sizeof(Logfile));
 			firstLog = currentLog;
 		    }
-		    currentLog->name = strdup(ptr);
+		    currentLog->name = lladCloneString(ptr);
 		    currentLog->first = NULL;
 		    currentLog->next = NULL;
 		}

@@ -1,5 +1,7 @@
 #include "util.h"
 
+#include <string.h>
+
 #include "daemon.h"
 
 void *
@@ -14,3 +16,10 @@ lladAlloc(size_t size)
     return alloc;
 }
 
+char *
+lladCloneString(const char *s)
+{
+    char *dst = lladAlloc(strlen(s)+1);
+    strcpy(dst, s);
+    return dst;
+}

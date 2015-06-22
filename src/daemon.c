@@ -10,6 +10,7 @@
 
 static int daemonize = 1;
 static const char *pidfile = NULL;
+static int loglevel = LEVEL_NOTICE;
 static int logfacility = 0;
 
 #define PIDFILE_DEFAULT "/var/run/%s.pid"
@@ -54,6 +55,12 @@ const struct poptOption daemon_opts[] = {
 	"Write daemon pid to the file specified in <path>, defaults to "
 	"/var/run/{daemon}.pid -- pass empty string to disable pidfile.",
 	"path"},
+    {"loglevel", 'l', POPT_ARG_INT, &loglevel, 0,
+	"Control the amout of information printed and logged. The lower the "
+	"number, the more information is given. The valid range for <level> "
+	"reaches from 0 (print/log everyting including debugging info) to 7 "
+	"(only print/log emergencies). The default is 2 (notices, warnings "
+	"and everything more important).", "level"},
     POPT_TABLEEND
 };
 
@@ -65,6 +72,7 @@ static void loginit(const char *daemon_name)
 
 void daemon_perror(const char *message)
 {
+    if (loglevel > LEVEL_ERR) return;
     if (logfacility)
     {
 	syslog(logfacility | LOG_ERR, "%s: %m", message);
@@ -77,6 +85,7 @@ void daemon_perror(const char *message)
 
 void daemon_print_level(int level, const char *message)
 {
+    if (level < loglevel) return;
     if (logfacility)
     {
 	syslog(logfacility | loglvl[level], "%s", message);
@@ -90,6 +99,7 @@ void daemon_print_level(int level, const char *message)
 
 static void daemon_vprintf_level(int level, const char *message_fmt, va_list ap)
 {
+    if (level < loglevel) return;
     if (logfacility)
     {
 	vsyslog(logfacility | loglvl[level], message_fmt, ap);
@@ -112,14 +122,14 @@ void daemon_printf_level(int level, const char *message_fmt, ...)
 
 void daemon_print(const char *message)
 {
-    daemon_print_level(LEVEL_INFO, message);
+    daemon_print_level(LEVEL_NOTICE, message);
 }
 
 void daemon_printf(const char *message_fmt, ...)
 {
     va_list ap;
     va_start(ap, message_fmt);
-    daemon_vprintf_level(LEVEL_INFO, message_fmt, ap);
+    daemon_vprintf_level(LEVEL_NOTICE, message_fmt, ap);
     va_end(ap);
 }
 

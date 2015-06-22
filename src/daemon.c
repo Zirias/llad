@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 
+static const char *daemon_name = NULL;
 static int daemonize = 1;
 static const char *pidfile = NULL;
 static int loglevel = LEVEL_NOTICE;
@@ -46,14 +47,16 @@ static void parseOpts(poptContext con,
     if (opt->val == 1) daemonize = 0;
 }
 
+static char pidfileHelp[1024];
+#define PID_HLP_PATTERN "Write daemon pid to the file specified in <path>, " \
+    "defaults to /var/run/%s.pid -- pass empty string to disable pidfile."
+
 const struct poptOption daemon_opts[] = {
     {NULL, '\0', POPT_ARG_CALLBACK, &parseOpts, 0, NULL, NULL},
     {"no-detach", 'd', POPT_ARG_NONE, NULL, 1,
 	"Do not detach from controlling tty, print to stderr instead of "
 	"logging (for debugging)", NULL},
-    {"pidfile", '\0', POPT_ARG_STRING, &pidfile, 0,
-	"Write daemon pid to the file specified in <path>, defaults to "
-	"/var/run/{daemon}.pid -- pass empty string to disable pidfile.",
+    {"pidfile", '\0', POPT_ARG_STRING, &pidfile, 0, pidfileHelp,
 	"path"},
     {"loglevel", 'l', POPT_ARG_INT, &loglevel, 0,
 	"Control the amout of information printed and logged. The lower the "
@@ -64,7 +67,7 @@ const struct poptOption daemon_opts[] = {
     POPT_TABLEEND
 };
 
-static void loginit(const char *daemon_name)
+static void loginit()
 {
     logfacility = LOG_DAEMON;
     openlog(daemon_name, LOG_CONS | LOG_NOWAIT | LOG_PID, logfacility);
@@ -133,14 +136,31 @@ void daemon_printf(const char *message_fmt, ...)
     va_end(ap);
 }
 
-void daemon_daemonize(const char *daemon_name,
-	const daemon_loop daemon_main, void *data)
+void daemon_init(const char *name)
+{
+    if (!name)
+    {
+	daemon_print_level(LEVEL_ERR, "Daemon initialization failed, "
+		"no daemon name given!");
+    }
+
+    daemon_name = name;
+    snprintf(pidfileHelp, 1024, PID_HLP_PATTERN, name);
+}
+
+int daemon_daemonize(const daemon_loop daemon_main, void *data)
 {
     pid_t pid, sid;
     const char *pfn = NULL;
     char pfnbuf[1024];
     FILE *pf = NULL;
     int rc;
+
+    if (!daemon_name)
+    {
+	daemon_print_level(LEVEL_ERR, "Can't daemonize, daemon.c was not "
+		"initialized! Call daemon_init() before daemon_daemonize()!");
+    }
 
     if (!pidfile)
     {
@@ -213,7 +233,7 @@ void daemon_daemonize(const char *daemon_name,
 	}
 
 	if (pf) fclose(pf);
-	loginit(daemon_name);
+	loginit();
 	umask(0);
 	sid = setsid();
 
@@ -244,7 +264,7 @@ void daemon_daemonize(const char *daemon_name,
 
     if (daemonize && pfn) unlink(pfn);
 
-    exit(rc);
+    return rc;
 }
 
 

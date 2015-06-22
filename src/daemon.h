@@ -20,8 +20,8 @@ enum daemon_levels
     LEVEL_EMERG
 };
 
-extern void daemon_daemonize(const char *daemon_name,
-	const daemon_loop daemon_main, void *data);
+extern void daemon_init(const char *name);
+extern int daemon_daemonize(const daemon_loop daemon_main, void *data);
 extern void daemon_print(const char *message);
 extern void daemon_print_level(int level, const char *message);
 extern void daemon_printf(const char *message_fmt, ...);

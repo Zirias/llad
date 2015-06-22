@@ -2,9 +2,11 @@
 #include <string.h>
 #include <popt.h>
 #include <unistd.h>
+#include <libgen.h>
 
 #include "config.h"
 #include "daemon.h"
+#include "util.h"
 
 static const struct poptOption opts[] = {
     CONFIG_OPTS
@@ -22,8 +24,14 @@ static int svcmain(void *data)
 
 int main(int argc, const char **argv)
 {
-    poptContext ctx = poptGetContext("llad", argc, argv, opts, 0);
+    int rc;
+    char *cmd = lladCloneString(argv[0]);
+
+    daemon_init(basename(cmd));
+    poptContext ctx = poptGetContext(cmd, argc, argv, opts, 0);
     poptGetNextOpt(ctx);
-    daemon_daemonize("llad", &svcmain, NULL);
+    rc = daemon_daemonize(&svcmain, NULL);
+    free(cmd);
+    return rc;
 }
 

@@ -1,4 +1,5 @@
 CC = gcc
+CFLAGS = -O3
 
 llad_OBJS := obj/llad.o obj/util.o obj/daemon.o obj/config.o
 llad_LIBS := -lpopt
@@ -16,7 +17,7 @@ obj:
 	mkdir obj
 
 obj/%.o: src/%.c | obj
-	$(CC) -c -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 .PHONY: all clean
 

@@ -31,6 +31,8 @@ struct action {
     Action *next;
 };
 
+static Config *configInstance = NULL;
+
 static char *
 nextLine(char *buf, FILE *cfg, int fullLine)
 {
@@ -101,7 +103,7 @@ parseWord(char **pos)
 		st.esc = 1;
 	    }
 	    else if ((st.qst == Q_QUOTE && **pos == '\'') ||
-		(st.qst = Q_DBLQUOTE && **pos == '"'))
+		(st.qst == Q_DBLQUOTE && **pos == '"'))
 	    {
 		++*pos;
 		st.qst = Q_NORMAL;
@@ -137,6 +139,8 @@ parseWord(char **pos)
 	    else
 	    {
 		word = lladCloneString(st.buf);
+		daemon_printf_level(LEVEL_DEBUG,
+			"[config.c] parseWord(): found `%s'", word);
 		memset(&st, 0, sizeof(struct state));
 		st.bufptr = st.buf;
 		return word;
@@ -153,7 +157,19 @@ parseWord(char **pos)
 	daemon_print_level(LEVEL_ERR, "Buffer full reading configuration.");
 	exit(EXIT_FAILURE);
     }
+
+    daemon_print_level(LEVEL_DEBUG, "[config.c] parseWord(): incomplete");
     return NULL;
+}
+
+static void
+skipWithWhitespace(char **pos)
+{
+    ++*pos;
+    while (**pos == ' ' || **pos == '\t' || **pos == '\r' || **pos == '\n')
+    {
+	++*pos;
+    }
 }
 
 static int
@@ -166,8 +182,7 @@ parseActions(Logfile *log, char *line)
 	ST_NAME_EQUALS,
 	ST_BLOCK,
 	ST_BLOCK_NAME,
-	ST_BLOCK_VALUE,
-	ST_BLOCK_END
+	ST_BLOCK_VALUE
     };
 
     struct state
@@ -190,9 +205,9 @@ parseActions(Logfile *log, char *line)
     {
 	initialized = 1;
 	memset(&st, 0, sizeof(struct state));
+	st.lastLog = log;
     }
-
-    if (log != st.lastLog)
+    else if (log != st.lastLog)
     {
 	free(st.name);
 	free(st.pattern);
@@ -210,7 +225,7 @@ parseActions(Logfile *log, char *line)
 	    case ST_START:
 		if (st.name = parseWord(&ptr))
 		{
-		    daemon_printf_level(LEVEL_DEBUG,
+		    daemon_printf_level(LEVEL_INFO,
 			    "[config.c] Found action: %s", st.name);
 		    st.step = ST_NAME;
 		}
@@ -222,58 +237,18 @@ parseActions(Logfile *log, char *line)
 		{
 		    st.step = ST_NAME_EQUALS;
 		}
-		++ptr;
+		skipWithWhitespace(&ptr);
 		break;
 
 	    case ST_NAME_EQUALS:
 		if (*ptr == '{')
 		{
-		    st.step == ST_BLOCK;
+		    st.step = ST_BLOCK;
 		}
-		++ptr;
+		skipWithWhitespace(&ptr);
 		break;
 
 	    case ST_BLOCK:
-		if (st.blockname = parseWord(&ptr))
-		{
-		    if (!strncmp(st.blockname, "pattern", 7))
-		    {
-			st.step = ST_BLOCK_NAME;
-			st.blockval = &(st.pattern);
-		    }
-		    else if (!strncmp(st.blockname, "command", 7))
-		    {
-			st.step = ST_BLOCK_NAME;
-			st.blockval = &(st.command);
-		    }
-		    else
-		    {
-			st.blockval = NULL;
-			daemon_printf_level(LEVEL_WARNING,
-				"Unknown config value: %s", st.blockname);
-		    }
-		    free(st.blockname);
-		}
-		else return 1;
-		break;
-
-	    case ST_BLOCK_NAME:
-		if (*ptr == '=')
-		{
-		    st.step = ST_BLOCK_VALUE;
-		}
-		++ptr;
-		break;
-
-	    case ST_BLOCK_VALUE:
-		if (*(st.blockval) = parseWord(&ptr))
-		{
-		    st.step = ST_BLOCK_END;
-		}
-		else return 1;
-		break;
-
-	    case ST_BLOCK_END:
 		if (*ptr == '}')
 		{
 		    st.step = ST_START;
@@ -293,16 +268,58 @@ parseActions(Logfile *log, char *line)
 			st.currentAction->pattern = st.pattern;
 			st.currentAction->command = st.command;
 			st.currentAction->next = NULL;
+			daemon_printf_level(LEVEL_INFO,
+				"[config.c] pattern: `%s' command: `%s'",
+				st.pattern, st.command);
 		    }
 		    else
 		    {
 			daemon_printf_level(LEVEL_WARNING,
-				"Ignoring incomplete action `%s'", st.name);
+				"[config.c] Ignoring incomplete action `%s'",
+				st.name);
 		    }
 		    memset(&st, 0, sizeof(struct state));
 		    st.lastLog = log;
+		    skipWithWhitespace(&ptr);
 		}
-		++ptr;
+		else if (st.blockname = parseWord(&ptr))
+		{
+		    if (!strncmp(st.blockname, "pattern", 7))
+		    {
+			st.step = ST_BLOCK_NAME;
+			st.blockval = &(st.pattern);
+		    }
+		    else if (!strncmp(st.blockname, "command", 7))
+		    {
+			st.step = ST_BLOCK_NAME;
+			st.blockval = &(st.command);
+		    }
+		    else
+		    {
+			st.blockval = NULL;
+			daemon_printf_level(LEVEL_WARNING,
+				"[config.c] Unknown config value: %s",
+				st.blockname);
+		    }
+		    free(st.blockname);
+		}
+		else return 1;
+		break;
+
+	    case ST_BLOCK_NAME:
+		if (*ptr == '=')
+		{
+		    st.step = ST_BLOCK_VALUE;
+		}
+		skipWithWhitespace(&ptr);
+		break;
+
+	    case ST_BLOCK_VALUE:
+		if (*(st.blockval) = parseWord(&ptr))
+		{
+		    st.step = ST_BLOCK;
+		}
+		else return 1;
 		break;
 	}
     }
@@ -328,7 +345,7 @@ loadConfigEntries(FILE *cfg)
 		if (*ptr2 == ']')
 		{
 		    *ptr2 = '\0';
-		    daemon_printf_level(LEVEL_DEBUG,
+		    daemon_printf_level(LEVEL_INFO,
 			    "[config.c] Found logfile section: %s", ptr);
 		    if (currentLog)
 		    {
@@ -355,14 +372,16 @@ loadConfigEntries(FILE *cfg)
     return firstLog;
 }
 
-const Config *
-config_Load(void)
+void
+config_init(void)
 {
     FILE *cfg;
     const char *cfgFile;
 
-    Config *self = lladAlloc(sizeof(Config));
-    self->first = NULL;
+    if (configInstance) return;
+
+    configInstance = lladAlloc(sizeof(Config));
+    configInstance->first = NULL;
 
     if (configFile)
     {
@@ -375,10 +394,14 @@ config_Load(void)
 
     if (cfg = fopen(cfgFile, "r"))
     {
-	self->first = loadConfigEntries(cfg);
+	configInstance->first = loadConfigEntries(cfg);
 	fclose(cfg);
     }
+}
 
-    return self;
+const Config *
+config_instance(void)
+{
+    return configInstance;
 }
 

@@ -18,7 +18,7 @@ static const struct poptOption opts[] = {
 static int svcmain(void *data)
 {
     daemon_print("Daemon started");
-    sleep(30);
+    sleep(5);
     daemon_print("Daemon stopped");
 }
 
@@ -28,9 +28,18 @@ int main(int argc, const char **argv)
     char *cmd = lladCloneString(argv[0]);
 
     daemon_init(basename(cmd));
+
     poptContext ctx = poptGetContext(cmd, argc, argv, opts, 0);
-    poptGetNextOpt(ctx);
+    if (poptGetNextOpt(ctx) > 0)
+    {
+	free(poptGetOptArg(ctx));
+    }
+    poptFreeContext(ctx);
+
+    config_init();
+
     rc = daemon_daemonize(&svcmain, NULL);
+    
     free(cmd);
     return rc;
 }

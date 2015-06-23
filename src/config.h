@@ -15,7 +15,8 @@ typedef struct logfile Logfile;
 struct action;
 typedef struct action Action;
 
-const Config *config_Load(void);
+void config_init(void);
+const Config *config_instance(void);
 
 
 #endif

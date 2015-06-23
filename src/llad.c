@@ -15,7 +15,8 @@ static const struct poptOption opts[] = {
     POPT_TABLEEND
 };
 
-static int svcmain(void *data)
+static int
+svcmain(void *data)
 {
     const Config *config;
     const Logfile *logfile;
@@ -48,7 +49,8 @@ static int svcmain(void *data)
     return EXIT_SUCCESS;
 }
 
-int main(int argc, const char **argv)
+int
+main(int argc, const char **argv)
 {
     int rc;
     poptContext ctx;

@@ -44,7 +44,8 @@ static const char * const strlvl[] = {
     "EMG"
 };
 
-static void parseOpts(poptContext con,
+static void
+parseOpts(poptContext con,
 	enum poptCallbackReason reason,
 	const struct poptOption *opt,
 	const char *arg, void *data)
@@ -74,13 +75,15 @@ const struct poptOption daemon_opts[] = {
     POPT_TABLEEND
 };
 
-static void loginit()
+static void
+loginit()
 {
     logfacility = LOG_DAEMON;
     openlog(daemon_name, LOG_CONS | LOG_NOWAIT | LOG_PID, logfacility);
 }
 
-void daemon_perror(const char *message)
+void
+daemon_perror(const char *message)
 {
     if (loglevel > LEVEL_ERR) return;
     if (logfacility)
@@ -93,7 +96,8 @@ void daemon_perror(const char *message)
     }
 }
 
-void daemon_print_level(int level, const char *message)
+void
+daemon_print_level(int level, const char *message)
 {
     if (level < loglevel) return;
     if (logfacility)
@@ -107,7 +111,8 @@ void daemon_print_level(int level, const char *message)
 }
 
 
-static void daemon_vprintf_level(int level, const char *message_fmt, va_list ap)
+static void
+daemon_vprintf_level(int level, const char *message_fmt, va_list ap)
 {
     if (level < loglevel) return;
     if (logfacility)
@@ -122,7 +127,8 @@ static void daemon_vprintf_level(int level, const char *message_fmt, va_list ap)
     }
 }
 
-void daemon_printf_level(int level, const char *message_fmt, ...)
+void
+daemon_printf_level(int level, const char *message_fmt, ...)
 {
     va_list ap;
     va_start(ap, message_fmt);
@@ -130,12 +136,14 @@ void daemon_printf_level(int level, const char *message_fmt, ...)
     va_end(ap);
 }
 
-void daemon_print(const char *message)
+void
+daemon_print(const char *message)
 {
     daemon_print_level(LEVEL_NOTICE, message);
 }
 
-void daemon_printf(const char *message_fmt, ...)
+void
+daemon_printf(const char *message_fmt, ...)
 {
     va_list ap;
     va_start(ap, message_fmt);
@@ -143,7 +151,8 @@ void daemon_printf(const char *message_fmt, ...)
     va_end(ap);
 }
 
-void daemon_init(const char *name)
+void
+daemon_init(const char *name)
 {
     if (!name)
     {
@@ -156,7 +165,8 @@ void daemon_init(const char *name)
     snprintf(pidfileHelp, 1024, PID_HLP_PATTERN, name);
 }
 
-int daemon_daemonize(const daemon_loop daemon_main, void *data)
+int
+daemon_daemonize(const daemon_loop daemon_main, void *data)
 {
     pid_t pid, sid;
     const char *pfn = NULL;

@@ -1,3 +1,5 @@
+#define _BSD_SOURCE
+#define _POSIX_SOURCE
 #include "daemon.h"
 
 #include <stdio.h>
@@ -7,6 +9,10 @@
 #include <syslog.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <signal.h>
 
 static const char *daemon_name = NULL;
 static int daemonize = 1;
@@ -52,7 +58,8 @@ static char pidfileHelp[1024];
     "defaults to /var/run/%s.pid -- pass empty string to disable pidfile."
 
 const struct poptOption daemon_opts[] = {
-    {NULL, '\0', POPT_ARG_CALLBACK, &parseOpts, 0, NULL, NULL},
+    {NULL, '\0', POPT_ARG_CALLBACK, (void *)(intptr_t)&parseOpts,
+	0, NULL, NULL},
     {"no-detach", 'd', POPT_ARG_NONE, NULL, 1,
 	"Do not detach from controlling tty, print to stderr instead of "
 	"logging (for debugging)", NULL},
@@ -78,7 +85,7 @@ void daemon_perror(const char *message)
     if (loglevel > LEVEL_ERR) return;
     if (logfacility)
     {
-	syslog(logfacility | LOG_ERR, "%s: %m", message);
+	syslog(logfacility | LOG_ERR, "%s: %s", message, strerror(errno));
     }
     else
     {

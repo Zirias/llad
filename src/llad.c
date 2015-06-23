@@ -44,16 +44,19 @@ static int svcmain(void *data)
     logfileIterator_free(li);
 
     daemon_print("Daemon stopped");
+
+    return EXIT_SUCCESS;
 }
 
 int main(int argc, const char **argv)
 {
     int rc;
+    poptContext ctx;
     char *cmd = lladCloneString(argv[0]);
 
     daemon_init(basename(cmd));
 
-    poptContext ctx = poptGetContext(cmd, argc, argv, opts, 0);
+    ctx = poptGetContext(cmd, argc, argv, opts, 0);
     if (poptGetNextOpt(ctx) > 0)
     {
 	free(poptGetOptArg(ctx));

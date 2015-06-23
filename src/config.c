@@ -234,7 +234,7 @@ parseActions(Logfile *log, char *line)
 	switch (st.step)
 	{
 	    case ST_START:
-		if (st.name = parseWord(&ptr))
+		if ((st.name = parseWord(&ptr)))
 		{
 		    daemon_printf_level(LEVEL_INFO,
 			    "[config.c] Found action: %s", st.name);
@@ -294,7 +294,7 @@ parseActions(Logfile *log, char *line)
 		    st.currentAction = nextAction;
 		    skipWithWhitespace(&ptr);
 		}
-		else if (st.blockname = parseWord(&ptr))
+		else if ((st.blockname = parseWord(&ptr)))
 		{
 		    if (!strncmp(st.blockname, "pattern", 7))
 		    {
@@ -327,7 +327,7 @@ parseActions(Logfile *log, char *line)
 		break;
 
 	    case ST_BLOCK_VALUE:
-		if (*(st.blockval) = parseWord(&ptr))
+		if ((*(st.blockval) = parseWord(&ptr)))
 		{
 		    st.step = ST_BLOCK;
 		}
@@ -335,6 +335,7 @@ parseActions(Logfile *log, char *line)
 		break;
 	}
     }
+    return 0;
 }
 
 static Logfile *
@@ -347,7 +348,7 @@ loadConfigEntries(FILE *cfg)
     char *ptr;
     char *ptr2;
 
-    while (ptr = nextLine(buf, cfg, needFullLine))
+    while ((ptr = nextLine(buf, cfg, needFullLine)))
     {
 	if (*ptr == '[')
 	{
@@ -404,7 +405,7 @@ config_init(void)
 	cfgFile = DEFAULT_CFG;
     }
 
-    if (cfg = fopen(cfgFile, "r"))
+    if ((cfg = fopen(cfgFile, "r")))
     {
 	configInstance->first = loadConfigEntries(cfg);
 	fclose(cfg);

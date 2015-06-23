@@ -24,11 +24,21 @@ struct logfile {
     Logfile *next;
 };
 
+struct logfileIterator {
+    const Config *container;
+    Logfile *current;
+};
+
 struct action {
     char *name;
     char *pattern;
     char *command;
     Action *next;
+};
+
+struct actionIterator {
+    const Logfile *container;
+    Action *current;
 };
 
 static Config *configInstance = NULL;
@@ -200,6 +210,7 @@ parseActions(Logfile *log, char *line)
     static int initialized = 0;
     static struct state st;
     char *ptr;
+    Action *nextAction;
 
     if (!initialized)
     {
@@ -254,32 +265,33 @@ parseActions(Logfile *log, char *line)
 		    st.step = ST_START;
 		    if (st.pattern && st.command)
 		    {
+			nextAction = lladAlloc(sizeof(Action));
 			if (st.currentAction)
 			{
-			    st.currentAction->next = lladAlloc(sizeof(Action));
-			    st.currentAction = st.currentAction->next;
+			    st.currentAction->next = nextAction;
 			}
 			else
 			{
-			    st.currentAction = lladAlloc(sizeof(Action));
-			    log->first = st.currentAction;
+			    log->first = nextAction;
 			}
-			st.currentAction->name = st.name;
-			st.currentAction->pattern = st.pattern;
-			st.currentAction->command = st.command;
-			st.currentAction->next = NULL;
+			nextAction->name = st.name;
+			nextAction->pattern = st.pattern;
+			nextAction->command = st.command;
+			nextAction->next = NULL;
 			daemon_printf_level(LEVEL_INFO,
 				"[config.c] pattern: `%s' command: `%s'",
 				st.pattern, st.command);
 		    }
 		    else
 		    {
+			nextAction = st.currentAction;
 			daemon_printf_level(LEVEL_WARNING,
 				"[config.c] Ignoring incomplete action `%s'",
 				st.name);
 		    }
 		    memset(&st, 0, sizeof(struct state));
 		    st.lastLog = log;
+		    st.currentAction = nextAction;
 		    skipWithWhitespace(&ptr);
 		}
 		else if (st.blockname = parseWord(&ptr))
@@ -403,5 +415,87 @@ const Config *
 config_instance(void)
 {
     return configInstance;
+}
+
+LogfileIterator *
+config_logfileIterator(const Config *self)
+{
+    LogfileIterator *i = lladAlloc(sizeof(LogfileIterator));
+    i->container = self;
+    i->current = NULL;
+    return i;
+}
+
+const Logfile *
+logfileIterator_current(const LogfileIterator *self)
+{
+    return self->current;
+}
+
+int
+logfileIterator_moveNext(LogfileIterator *self)
+{
+    if (self->current) self->current = self->current->next;
+    else self->current = self->container->first;
+    return (self->current != NULL);
+}
+
+void
+logfileIterator_free(LogfileIterator *self)
+{
+    free(self);
+}
+
+const char *
+logfile_name(const Logfile *self)
+{
+    return self->name;
+}
+
+ActionIterator *
+logfile_actionIterator(const Logfile *self)
+{
+    ActionIterator *i = lladAlloc(sizeof(ActionIterator));
+    i->container = self;
+    i->current = NULL;
+    return i;
+}
+
+const Action *
+actionIterator_current(const ActionIterator *self)
+{
+    return self->current;
+}
+
+int
+actionIterator_moveNext(ActionIterator *self)
+{
+    if (self->current) self->current = self->current->next;
+    else self->current = self->container->first;
+    return (self->current != NULL);
+}
+
+void
+actionIterator_free(ActionIterator *self)
+{
+    free(self);
+}
+
+const char *
+action_name(const Action *self)
+{
+    return self->name;
+}
+
+const char *
+action_pattern(const Action *self)
+{
+    return self->pattern;
+}
+
+const char *
+action_command(const Action *self)
+{
+    return self->command;
 }
 

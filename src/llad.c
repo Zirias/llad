@@ -17,8 +17,32 @@ static const struct poptOption opts[] = {
 
 static int svcmain(void *data)
 {
+    const Config *config;
+    const Logfile *logfile;
+    const Action *action;
+    LogfileIterator *li;
+    ActionIterator *ai;
+
     daemon_print("Daemon started");
-    sleep(5);
+
+    config = config_instance();
+    for (li = config_logfileIterator(config);
+	    logfileIterator_moveNext(li),
+	    logfile = logfileIterator_current(li);)
+    {
+	daemon_printf("Logfile: %s", logfile_name(logfile));
+	for (ai = logfile_actionIterator(logfile);
+		actionIterator_moveNext(ai),
+		action = actionIterator_current(ai);)
+	{
+	    daemon_printf("  Action: %s", action_name(action));
+	    daemon_printf("    Pattern: %s", action_pattern(action));
+	    daemon_printf("    Command: %s", action_command(action));
+	}
+	actionIterator_free(ai);
+    }
+    logfileIterator_free(li);
+
     daemon_print("Daemon stopped");
 }
 

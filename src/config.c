@@ -32,13 +32,14 @@ struct action {
 };
 
 static char *
-nextLine(char *buf, FILE *cfg)
+nextLine(char *buf, FILE *cfg, int fullLine)
 {
     char *ptr;
     
     while (fgets(buf, 1024, cfg))
     {
 	ptr = buf;
+	if (fullLine) return ptr;
 	while (*ptr == ' ' || *ptr == '\t')
 	{
 	    ++ptr;
@@ -53,18 +54,9 @@ nextLine(char *buf, FILE *cfg)
     return NULL;
 }
 
-static void
-parseActions(Logfile *log, char *line)
+static char *
+parseWord(char **pos)
 {
-    enum step
-    {
-	ST_START,
-	ST_NAME,
-	ST_NAME_EQUALS,
-	ST_BLOCK,
-	ST_BLOCK_VALUE
-    };
-
     enum qst
     {
 	Q_NORMAL,
@@ -74,17 +66,125 @@ parseActions(Logfile *log, char *line)
 
     struct state
     {
+	enum qst qst;
+	int esc;
+	char buf[1024];
+	char *bufptr;
+    };
+
+    char *word = NULL;
+    static int initialized = 0;
+    static struct state st;
+
+    if (!initialized)
+    {
+	initialized = 1;
+	memset(&st, 0, sizeof(struct state));
+	st.bufptr = st.buf;
+    }
+
+    while (**pos && st.bufptr < st.buf+1023)
+    {
+	if (st.esc)
+	{
+	    *st.bufptr++ = **pos;
+	    ++*pos;
+	    st.esc = 0;
+	}
+	else if (st.qst)
+	{
+	    if (**pos == '\\' &&
+		    ((st.qst == Q_QUOTE && *(*pos+1) == '\'') ||
+		     (st.qst == Q_DBLQUOTE && *(*pos+1) == '"')))
+	    {
+		++*pos;
+		st.esc = 1;
+	    }
+	    else if ((st.qst == Q_QUOTE && **pos == '\'') ||
+		(st.qst = Q_DBLQUOTE && **pos == '"'))
+	    {
+		++*pos;
+		st.qst = Q_NORMAL;
+	    }
+	    else
+	    {
+		*st.bufptr++ = **pos;
+		++*pos;
+	    }
+	}
+	else if (**pos == '\\')
+	{
+	    ++*pos;
+	    st.esc = 1;
+	}
+	else if (**pos == '\'')
+	{
+	    ++*pos;
+	    st.qst = Q_QUOTE;
+	}
+	else if (**pos == '"')
+	{
+	    ++*pos;
+	    st.qst = Q_DBLQUOTE;
+	}
+	else if (**pos == ' ' || **pos == '\t' || **pos == '=' || **pos == '{'
+		|| **pos == '}' || **pos == '\r' || **pos == '\n')
+	{
+	    if (st.bufptr == st.buf)
+	    {
+		++*pos;
+	    }
+	    else
+	    {
+		word = lladCloneString(st.buf);
+		memset(&st, 0, sizeof(struct state));
+		st.bufptr = st.buf;
+		return word;
+	    }
+	}
+	else
+	{
+	    *st.bufptr++ = **pos;
+	    ++*pos;
+	}
+    }
+    if (**pos)
+    {
+	daemon_print_level(LEVEL_ERR, "Buffer full reading configuration.");
+	exit(EXIT_FAILURE);
+    }
+    return NULL;
+}
+
+static int
+parseActions(Logfile *log, char *line)
+{
+    enum step
+    {
+	ST_START,
+	ST_NAME,
+	ST_NAME_EQUALS,
+	ST_BLOCK,
+	ST_BLOCK_NAME,
+	ST_BLOCK_VALUE,
+	ST_BLOCK_END
+    };
+
+    struct state
+    {
 	Logfile *lastLog;
 	char *name;
 	char *pattern;
 	char *command;
-	Action currentAction;
+	char *blockname;
+	char **blockval;
+	Action *currentAction;
 	enum step step;
-	enum qst qst;
     };
 
     static int initialized = 0;
     static struct state st;
+    char *ptr;
 
     if (!initialized)
     {
@@ -100,6 +200,112 @@ parseActions(Logfile *log, char *line)
 	memset(&st, 0, sizeof(struct state));
 	st.lastLog = log;
     }
+
+    ptr = line;
+
+    while (*ptr)
+    {
+	switch (st.step)
+	{
+	    case ST_START:
+		if (st.name = parseWord(&ptr))
+		{
+		    daemon_printf_level(LEVEL_DEBUG,
+			    "[config.c] Found action: %s", st.name);
+		    st.step = ST_NAME;
+		}
+		else return 1;
+		break;
+	    
+	    case ST_NAME:
+		if (*ptr == '=')
+		{
+		    st.step = ST_NAME_EQUALS;
+		}
+		++ptr;
+		break;
+
+	    case ST_NAME_EQUALS:
+		if (*ptr == '{')
+		{
+		    st.step == ST_BLOCK;
+		}
+		++ptr;
+		break;
+
+	    case ST_BLOCK:
+		if (st.blockname = parseWord(&ptr))
+		{
+		    if (!strncmp(st.blockname, "pattern", 7))
+		    {
+			st.step = ST_BLOCK_NAME;
+			st.blockval = &(st.pattern);
+		    }
+		    else if (!strncmp(st.blockname, "command", 7))
+		    {
+			st.step = ST_BLOCK_NAME;
+			st.blockval = &(st.command);
+		    }
+		    else
+		    {
+			st.blockval = NULL;
+			daemon_printf_level(LEVEL_WARNING,
+				"Unknown config value: %s", st.blockname);
+		    }
+		    free(st.blockname);
+		}
+		else return 1;
+		break;
+
+	    case ST_BLOCK_NAME:
+		if (*ptr == '=')
+		{
+		    st.step = ST_BLOCK_VALUE;
+		}
+		++ptr;
+		break;
+
+	    case ST_BLOCK_VALUE:
+		if (*(st.blockval) = parseWord(&ptr))
+		{
+		    st.step = ST_BLOCK_END;
+		}
+		else return 1;
+		break;
+
+	    case ST_BLOCK_END:
+		if (*ptr == '}')
+		{
+		    st.step = ST_START;
+		    if (st.pattern && st.command)
+		    {
+			if (st.currentAction)
+			{
+			    st.currentAction->next = lladAlloc(sizeof(Action));
+			    st.currentAction = st.currentAction->next;
+			}
+			else
+			{
+			    st.currentAction = lladAlloc(sizeof(Action));
+			    log->first = st.currentAction;
+			}
+			st.currentAction->name = st.name;
+			st.currentAction->pattern = st.pattern;
+			st.currentAction->command = st.command;
+			st.currentAction->next = NULL;
+		    }
+		    else
+		    {
+			daemon_printf_level(LEVEL_WARNING,
+				"Ignoring incomplete action `%s'", st.name);
+		    }
+		    memset(&st, 0, sizeof(struct state));
+		    st.lastLog = log;
+		}
+		++ptr;
+		break;
+	}
+    }
 }
 
 static Logfile *
@@ -107,11 +313,12 @@ loadConfigEntries(FILE *cfg)
 {
     Logfile *firstLog = NULL;
     Logfile *currentLog = NULL;
+    int needFullLine = 0;
     char buf[1024];
     char *ptr;
     char *ptr2;
 
-    while (ptr = nextLine(buf, cfg))
+    while (ptr = nextLine(buf, cfg, needFullLine))
     {
 	if (*ptr == '[')
 	{
@@ -141,7 +348,7 @@ loadConfigEntries(FILE *cfg)
 	}
 	else if (currentLog)
 	{
-	    parseActions(currentLog, ptr);
+	    needFullLine = parseActions(currentLog, ptr);
 	}
     }
 

@@ -9,36 +9,36 @@ extern const struct poptOption config_opts[];
 struct config;
 typedef struct config Config;
 
-struct logfile;
-typedef struct logfile Logfile;
+struct cfgLog;
+typedef struct cfgLog CfgLog;
 
-struct logfileIterator;
-typedef struct logfileIterator LogfileIterator;
+struct cfgLogItor;
+typedef struct cfgLogItor CfgLogItor;
 
-struct action;
-typedef struct action Action;
+struct cfgAct;
+typedef struct cfgAct CfgAct;
 
-struct actionIterator;
-typedef struct actionIterator ActionIterator;
+struct cfgActItor;
+typedef struct cfgActItor CfgActItor;
 
 void config_init(void);
 
 const Config *config_instance(void);
 
-LogfileIterator *config_logfileIterator(const Config *self);
-const Logfile *logfileIterator_current(const LogfileIterator *self);
-int logfileIterator_moveNext(LogfileIterator *self);
-void logfileIterator_free(LogfileIterator *self);
+CfgLogItor *config_cfgLogItor(const Config *self);
+const CfgLog *cfgLogItor_current(const CfgLogItor *self);
+int cfgLogItor_moveNext(CfgLogItor *self);
+void cfgLogItor_free(CfgLogItor *self);
 
-const char *logfile_name(const Logfile *self);
+const char *cfgLog_name(const CfgLog *self);
 
-ActionIterator *logfile_actionIterator(const Logfile *self);
-const Action *actionIterator_current(const ActionIterator *self);
-int actionIterator_moveNext(ActionIterator *self);
-void actionIterator_free(ActionIterator *self);
+CfgActItor *cfgLog_cfgActItor(const CfgLog *self);
+const CfgAct *cfgActItor_current(const CfgActItor *self);
+int cfgActItor_moveNext(CfgActItor *self);
+void cfgActItor_free(CfgActItor *self);
 
-const char *action_name(const Action *self);
-const char *action_pattern(const Action *self);
-const char *action_command(const Action *self);
+const char *cfgAct_name(const CfgAct *self);
+const char *cfgAct_pattern(const CfgAct *self);
+const char *cfgAct_command(const CfgAct *self);
 
 #endif

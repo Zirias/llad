@@ -15,30 +15,30 @@ const struct poptOption config_opts[] = {
 };
 
 struct config {
-    Logfile *first;
+    CfgLog *first;
 };
 
-struct logfile {
+struct cfgLog {
     char *name;
-    Action *first;
-    Logfile *next;
+    CfgAct *first;
+    CfgLog *next;
 };
 
-struct logfileIterator {
+struct cfgLogItor {
     const Config *container;
-    Logfile *current;
+    CfgLog *current;
 };
 
-struct action {
+struct cfgAct {
     char *name;
     char *pattern;
     char *command;
-    Action *next;
+    CfgAct *next;
 };
 
-struct actionIterator {
-    const Logfile *container;
-    Action *current;
+struct cfgActItor {
+    const CfgLog *container;
+    CfgAct *current;
 };
 
 static Config *configInstance = NULL;
@@ -183,7 +183,7 @@ skipWithWhitespace(char **pos)
 }
 
 static int
-parseActions(Logfile *log, char *line)
+parseActions(CfgLog *log, char *line)
 {
     enum step
     {
@@ -197,20 +197,20 @@ parseActions(Logfile *log, char *line)
 
     struct state
     {
-	Logfile *lastLog;
+	CfgLog *lastLog;
 	char *name;
 	char *pattern;
 	char *command;
 	char *blockname;
 	char **blockval;
-	Action *currentAction;
+	CfgAct *currentAction;
 	enum step step;
     };
 
     static int initialized = 0;
     static struct state st;
     char *ptr;
-    Action *nextAction;
+    CfgAct *nextAction;
 
     if (!initialized)
     {
@@ -265,7 +265,7 @@ parseActions(Logfile *log, char *line)
 		    st.step = ST_START;
 		    if (st.pattern && st.command)
 		    {
-			nextAction = lladAlloc(sizeof(Action));
+			nextAction = lladAlloc(sizeof(CfgAct));
 			if (st.currentAction)
 			{
 			    st.currentAction->next = nextAction;
@@ -338,11 +338,11 @@ parseActions(Logfile *log, char *line)
     return 0;
 }
 
-static Logfile *
+static CfgLog *
 loadConfigEntries(FILE *cfg)
 {
-    Logfile *firstLog = NULL;
-    Logfile *currentLog = NULL;
+    CfgLog *firstLog = NULL;
+    CfgLog *currentLog = NULL;
     int needFullLine = 0;
     char buf[1024];
     char *ptr;
@@ -362,12 +362,12 @@ loadConfigEntries(FILE *cfg)
 			    "[config.c] Found logfile section: %s", ptr);
 		    if (currentLog)
 		    {
-			currentLog->next = lladAlloc(sizeof(Logfile));
+			currentLog->next = lladAlloc(sizeof(CfgLog));
 			currentLog = currentLog->next;
 		    }
 		    else
 		    {
-			currentLog = lladAlloc(sizeof(Logfile));
+			currentLog = lladAlloc(sizeof(CfgLog));
 			firstLog = currentLog;
 		    }
 		    currentLog->name = lladCloneString(ptr);
@@ -418,23 +418,23 @@ config_instance(void)
     return configInstance;
 }
 
-LogfileIterator *
-config_logfileIterator(const Config *self)
+CfgLogItor *
+config_cfgLogItor(const Config *self)
 {
-    LogfileIterator *i = lladAlloc(sizeof(LogfileIterator));
+    CfgLogItor *i = lladAlloc(sizeof(CfgLogItor));
     i->container = self;
     i->current = NULL;
     return i;
 }
 
-const Logfile *
-logfileIterator_current(const LogfileIterator *self)
+const CfgLog *
+cfgLogItor_current(const CfgLogItor *self)
 {
     return self->current;
 }
 
 int
-logfileIterator_moveNext(LogfileIterator *self)
+cfgLogItor_moveNext(CfgLogItor *self)
 {
     if (self->current) self->current = self->current->next;
     else self->current = self->container->first;
@@ -442,34 +442,34 @@ logfileIterator_moveNext(LogfileIterator *self)
 }
 
 void
-logfileIterator_free(LogfileIterator *self)
+cfgLogItor_free(CfgLogItor *self)
 {
     free(self);
 }
 
 const char *
-logfile_name(const Logfile *self)
+cfgLog_name(const CfgLog *self)
 {
     return self->name;
 }
 
-ActionIterator *
-logfile_actionIterator(const Logfile *self)
+CfgActItor *
+cfgLog_cfgActItor(const CfgLog *self)
 {
-    ActionIterator *i = lladAlloc(sizeof(ActionIterator));
+    CfgActItor *i = lladAlloc(sizeof(CfgActItor));
     i->container = self;
     i->current = NULL;
     return i;
 }
 
-const Action *
-actionIterator_current(const ActionIterator *self)
+const CfgAct *
+cfgActItor_current(const CfgActItor *self)
 {
     return self->current;
 }
 
 int
-actionIterator_moveNext(ActionIterator *self)
+cfgActItor_moveNext(CfgActItor *self)
 {
     if (self->current) self->current = self->current->next;
     else self->current = self->container->first;
@@ -477,25 +477,25 @@ actionIterator_moveNext(ActionIterator *self)
 }
 
 void
-actionIterator_free(ActionIterator *self)
+cfgActItor_free(CfgActItor *self)
 {
     free(self);
 }
 
 const char *
-action_name(const Action *self)
+cfgAct_name(const CfgAct *self)
 {
     return self->name;
 }
 
 const char *
-action_pattern(const Action *self)
+cfgAct_pattern(const CfgAct *self)
 {
     return self->pattern;
 }
 
 const char *
-action_command(const Action *self)
+cfgAct_command(const CfgAct *self)
 {
     return self->command;
 }

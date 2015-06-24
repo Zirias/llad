@@ -19,30 +19,28 @@ static int
 svcmain(void *data)
 {
     const Config *config;
-    const Logfile *logfile;
-    const Action *action;
-    LogfileIterator *li;
-    ActionIterator *ai;
+    const CfgLog *cfgLog;
+    const CfgAct *cfgAct;
+    CfgLogItor *li;
+    CfgActItor *ai;
 
     daemon_print("Daemon started");
 
     config = config_instance();
-    for (li = config_logfileIterator(config);
-	    logfileIterator_moveNext(li),
-	    logfile = logfileIterator_current(li);)
+    for (li = config_cfgLogItor(config);
+	    cfgLogItor_moveNext(li), cfgLog = cfgLogItor_current(li);)
     {
-	daemon_printf("Logfile: %s", logfile_name(logfile));
-	for (ai = logfile_actionIterator(logfile);
-		actionIterator_moveNext(ai),
-		action = actionIterator_current(ai);)
+	daemon_printf("Logfile: %s", cfgLog_name(cfgLog));
+	for (ai = cfgLog_cfgActItor(cfgLog);
+		cfgActItor_moveNext(ai), cfgAct = cfgActItor_current(ai);)
 	{
-	    daemon_printf("  Action: %s", action_name(action));
-	    daemon_printf("    Pattern: %s", action_pattern(action));
-	    daemon_printf("    Command: %s", action_command(action));
+	    daemon_printf("  Action: %s", cfgAct_name(cfgAct));
+	    daemon_printf("    Pattern: %s", cfgAct_pattern(cfgAct));
+	    daemon_printf("    Command: %s", cfgAct_command(cfgAct));
 	}
-	actionIterator_free(ai);
+	cfgActItor_free(ai);
     }
-    logfileIterator_free(li);
+    cfgLogItor_free(li);
 
     daemon_print("Daemon stopped");
 

@@ -18,7 +18,6 @@ static const struct poptOption opts[] = {
 static int
 svcmain(void *data)
 {
-    const Config *config;
     const CfgLog *cfgLog;
     const CfgAct *cfgAct;
     CfgLogItor *li;
@@ -26,8 +25,7 @@ svcmain(void *data)
 
     daemon_print("Daemon started");
 
-    config = config_instance();
-    for (li = config_cfgLogItor(config);
+    for (li = Config_cfgLogItor();
 	    cfgLogItor_moveNext(li), cfgLog = cfgLogItor_current(li);)
     {
 	daemon_printf("Logfile: %s", cfgLog_name(cfgLog));
@@ -57,16 +55,14 @@ main(int argc, const char **argv)
     daemon_init(basename(cmd));
 
     ctx = poptGetContext(cmd, argc, argv, opts, 0);
-    if (poptGetNextOpt(ctx) > 0)
-    {
-	free(poptGetOptArg(ctx));
-    }
+    poptGetNextOpt(ctx);
     poptFreeContext(ctx);
 
-    config_init();
+    Config_init();
 
     rc = daemon_daemonize(&svcmain, NULL);
     
+    Config_done();
     free(cmd);
     return rc;
 }

@@ -14,10 +14,6 @@ const struct poptOption config_opts[] = {
     POPT_TABLEEND
 };
 
-struct config {
-    CfgLog *first;
-};
-
 struct cfgLog {
     char *name;
     CfgAct *first;
@@ -25,7 +21,6 @@ struct cfgLog {
 };
 
 struct cfgLogItor {
-    const Config *container;
     CfgLog *current;
 };
 
@@ -41,7 +36,7 @@ struct cfgActItor {
     CfgAct *current;
 };
 
-static Config *configInstance = NULL;
+static CfgLog *firstCfgLog = NULL;
 
 static char *
 nextLine(char *buf, FILE *cfg, int fullLine)
@@ -338,10 +333,9 @@ parseActions(CfgLog *log, char *line)
     return 0;
 }
 
-static CfgLog *
+static void
 loadConfigEntries(FILE *cfg)
 {
-    CfgLog *firstLog = NULL;
     CfgLog *currentLog = NULL;
     int needFullLine = 0;
     char buf[1024];
@@ -368,7 +362,7 @@ loadConfigEntries(FILE *cfg)
 		    else
 		    {
 			currentLog = lladAlloc(sizeof(CfgLog));
-			firstLog = currentLog;
+			firstCfgLog = currentLog;
 		    }
 		    currentLog->name = lladCloneString(ptr);
 		    currentLog->first = NULL;
@@ -381,20 +375,46 @@ loadConfigEntries(FILE *cfg)
 	    needFullLine = parseActions(currentLog, ptr);
 	}
     }
-
-    return firstLog;
 }
 
 void
-config_init(void)
+Config_done(void)
+{
+    CfgLog *logc, *logl;
+    CfgAct *actc, *actl;
+
+    logc = firstCfgLog;
+    while (logc)
+    {
+	logl = logc;
+	logc = logl->next;
+
+	actc = logl->first;
+	while (actc)
+	{
+	    actl = actc;
+	    actc = actl->next;
+
+	    free(actl->name);
+	    free(actl->pattern);
+	    free(actl->command);
+	    free(actl);
+	}
+
+	free(logl->name);
+	free(logl);
+    }
+
+    firstCfgLog = NULL;
+}
+
+void
+Config_init(void)
 {
     FILE *cfg;
     const char *cfgFile;
 
-    if (configInstance) return;
-
-    configInstance = lladAlloc(sizeof(Config));
-    configInstance->first = NULL;
+    if (firstCfgLog) Config_done();
 
     if (configFile)
     {
@@ -407,22 +427,15 @@ config_init(void)
 
     if ((cfg = fopen(cfgFile, "r")))
     {
-	configInstance->first = loadConfigEntries(cfg);
+	loadConfigEntries(cfg);
 	fclose(cfg);
     }
 }
 
-const Config *
-config_instance(void)
-{
-    return configInstance;
-}
-
 CfgLogItor *
-config_cfgLogItor(const Config *self)
+Config_cfgLogItor()
 {
     CfgLogItor *i = lladAlloc(sizeof(CfgLogItor));
-    i->container = self;
     i->current = NULL;
     return i;
 }
@@ -437,7 +450,7 @@ int
 cfgLogItor_moveNext(CfgLogItor *self)
 {
     if (self->current) self->current = self->current->next;
-    else self->current = self->container->first;
+    else self->current = firstCfgLog;
     return (self->current != NULL);
 }
 

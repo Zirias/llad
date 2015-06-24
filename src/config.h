@@ -6,9 +6,6 @@
 extern const struct poptOption config_opts[];
 #define CONFIG_OPTS {NULL, '\0', POPT_ARG_INCLUDE_TABLE, (struct poptOption *)config_opts, 0, "Config options:", NULL},
 
-struct config;
-typedef struct config Config;
-
 struct cfgLog;
 typedef struct cfgLog CfgLog;
 
@@ -21,11 +18,10 @@ typedef struct cfgAct CfgAct;
 struct cfgActItor;
 typedef struct cfgActItor CfgActItor;
 
-void config_init(void);
+void Config_init(void);
+void Config_done(void);
 
-const Config *config_instance(void);
-
-CfgLogItor *config_cfgLogItor(const Config *self);
+CfgLogItor *Config_cfgLogItor();
 const CfgLog *cfgLogItor_current(const CfgLogItor *self);
 int cfgLogItor_moveNext(CfgLogItor *self);
 void cfgLogItor_free(CfgLogItor *self);

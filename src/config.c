@@ -38,6 +38,14 @@ struct cfgActItor {
 
 static CfgLog *firstCfgLog = NULL;
 
+static int cleanupInstalled = 0;
+static void
+cleanup(void)
+{
+    Config_done();
+    free((void *)configFile);
+}
+
 static char *
 nextLine(char *buf, FILE *cfg, int fullLine)
 {
@@ -415,6 +423,12 @@ Config_init(void)
     const char *cfgFile;
 
     if (firstCfgLog) Config_done();
+
+    if (!cleanupInstalled)
+    {
+	cleanupInstalled = 1;
+	atexit(&cleanup);
+    }
 
     if (configFile)
     {

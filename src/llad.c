@@ -55,14 +55,14 @@ main(int argc, const char **argv)
     daemon_init(basename(cmd));
 
     ctx = poptGetContext(cmd, argc, argv, opts, 0);
-    poptGetNextOpt(ctx);
-    poptFreeContext(ctx);
+    if (poptGetNextOpt(ctx) > 0) free(poptGetOptArg(ctx));
 
     Config_init();
-
     rc = daemon_daemonize(&svcmain, NULL);
-    
     Config_done();
+
+    poptFreeContext(ctx);
+
     free(cmd);
     return rc;
 }

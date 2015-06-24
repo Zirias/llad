@@ -63,8 +63,15 @@ const struct poptOption daemon_opts[] = {
     POPT_TABLEEND
 };
 
+static int cleanupInstalled = 0;
 static void
-loginit()
+cleanup(void)
+{
+    free((void *)pidfile);
+}
+
+static void
+loginit(void)
 {
     logfacility = LOG_DAEMON;
     openlog(daemon_name, LOG_CONS | LOG_NOWAIT | LOG_PID, logfacility);
@@ -142,6 +149,12 @@ daemon_printf(const char *message_fmt, ...)
 void
 daemon_init(const char *name)
 {
+    if (!cleanupInstalled)
+    {
+	cleanupInstalled = 1;
+	atexit(&cleanup);
+    }
+
     if (!name)
     {
 	daemon_print_level(LEVEL_ERR, "Daemon initialization failed, "
@@ -236,7 +249,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 		fclose(pf);
 	    }
 
-	    exit(EXIT_SUCCESS);
+	    return EXIT_SUCCESS;
 	}
 
 	if (pf) fclose(pf);

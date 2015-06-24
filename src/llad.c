@@ -48,14 +48,26 @@ svcmain(void *data)
 int
 main(int argc, const char **argv)
 {
-    int rc;
+    int rc, prc;
     poptContext ctx;
     char *cmd = lladCloneString(argv[0]);
 
     daemon_init(basename(cmd));
 
     ctx = poptGetContext(cmd, argc, argv, opts, 0);
-    if (poptGetNextOpt(ctx) > 0) free(poptGetOptArg(ctx));
+    prc = poptGetNextOpt(ctx);
+    if (prc < -1)
+    {
+	daemon_printf_level(LEVEL_ERR, "%s: %s",
+		poptBadOption(ctx, POPT_BADOPTION_NOALIAS),
+		poptStrerror(prc));
+	free(cmd);
+	return EXIT_FAILURE;
+    }
+    else
+    {
+	free(poptGetOptArg(ctx));
+    }
 
     Config_init();
     rc = daemon_daemonize(&svcmain, NULL);

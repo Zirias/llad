@@ -9,7 +9,7 @@
 const char *configFile = NULL;
 
 const struct poptOption config_opts[] = {
-    {"config", 'c', POPT_ARG_STRING, &configFile, 1,
+    {"config", 'c', POPT_ARG_STRING, &configFile, 0,
 	"Load config from <path> instead of the default " DEFAULT_CFG, "path"},
     POPT_TABLEEND
 };

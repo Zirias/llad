@@ -15,7 +15,7 @@
 #include <signal.h>
 
 static const char *daemon_name = NULL;
-static int daemonize = 1;
+static int nodetach = 0;
 static const char *pidfile = NULL;
 static int loglevel = LEVEL_NOTICE;
 static int logfacility = 0;
@@ -44,24 +44,12 @@ static const char * const strlvl[] = {
     "EMG"
 };
 
-static void
-parseOpts(poptContext con,
-	enum poptCallbackReason reason,
-	const struct poptOption *opt,
-	const char *arg, void *data)
-{
-    if (reason != POPT_CALLBACK_REASON_OPTION) return;
-    if (opt->val == 1) daemonize = 0;
-}
-
 static char pidfileHelp[1024];
 #define PID_HLP_PATTERN "Write daemon pid to the file specified in <path>, " \
     "defaults to /var/run/%s.pid -- pass empty string to disable pidfile."
 
 const struct poptOption daemon_opts[] = {
-    {NULL, '\0', POPT_ARG_CALLBACK, (void *)(intptr_t)&parseOpts,
-	0, NULL, NULL},
-    {"no-detach", 'd', POPT_ARG_NONE, NULL, 1,
+    {"no-detach", 'd', POPT_ARG_NONE, &nodetach, 0,
 	"Do not detach from controlling tty, print to stderr instead of "
 	"logging (for debugging)", NULL},
     {"pidfile", '\0', POPT_ARG_STRING, &pidfile, 0, pidfileHelp,
@@ -191,7 +179,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 	pfn = pidfile;
     }
 
-    if (daemonize)
+    if (!nodetach)
     {
 	if (pfn)
 	{
@@ -281,7 +269,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 
     rc = daemon_main(data);
 
-    if (daemonize && pfn) unlink(pfn);
+    if (!nodetach && pfn) unlink(pfn);
 
     return rc;
 }

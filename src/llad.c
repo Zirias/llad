@@ -58,7 +58,7 @@ main(int argc, const char **argv)
     prc = poptGetNextOpt(ctx);
     if (prc < -1)
     {
-	daemon_printf_level(LEVEL_ERR, "%s: %s",
+	daemon_printf_level(LEVEL_ERR, "Option `%s': %s",
 		poptBadOption(ctx, POPT_BADOPTION_NOALIAS),
 		poptStrerror(prc));
 	free(cmd);

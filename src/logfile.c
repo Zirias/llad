@@ -60,7 +60,7 @@ logfile_new(const CfgLog *cl)
 
     if (stat(self->name, &st) < 0)
     {
-	self->readpos = 0;
+	self->readpos = 0L;
     }
     else
     {

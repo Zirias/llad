@@ -1,3 +1,5 @@
+#define _FILE_OFFSET_BITS 64
+#define _POSIX_C_SOURCE 200112L
 #include "logfile.h"
 
 #include <stdio.h>
@@ -5,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 #include <errno.h>
 
@@ -12,12 +15,14 @@
 #include "daemon.h"
 #include "util.h"
 
+#define MAX_SCAN_COMPLETE_FILE 8192
+#define SCAN_BUFSIZE 4096
+
 struct logfile
 {
     char *name;
     char *dirName;
     FILE *file;
-    off_t readpos;
     Logfile *next;
 };
 
@@ -32,6 +37,7 @@ static Logfile *
 logfile_new(const CfgLog *cl)
 {
     struct stat st;
+    int fd;
     Logfile *self = NULL;
     char *tmp = lladCloneString(cfgLog_name(cl));
     char *dirName = dirname(tmp);
@@ -58,17 +64,29 @@ logfile_new(const CfgLog *cl)
     free(tmp);
     self->file = NULL;
 
-    if (stat(self->name, &st) < 0)
+    if ((self->file = fopen(self->name, "r")))
     {
-	self->readpos = 0L;
+	fd = fileno(self->file);
+	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+	fseeko(self->file, 0L, SEEK_END);
     }
     else
     {
-	self->readpos = st.st_size;
+	daemon_printf_level(LEVEL_NOTICE,
+		"Could not open `%s': %s", self->name, strerror(errno));
     }
 
     self->next = NULL;
     return self;
+}
+
+static void
+logfile_free(Logfile *self)
+{
+    if (self->file) fclose(self->file);
+    free(self->dirName);
+    free(self->name);
+    free(self);
 }
 
 void
@@ -81,9 +99,7 @@ LogfileList_done(void)
     {
 	last = curr;
 	curr = last->next;
-	free(last->dirName);
-	free(last->name);
-	free(last);
+	logfile_free(last);
     }
 
     firstLog = NULL;
@@ -162,12 +178,46 @@ logfile_dirName(const Logfile *self)
     return self->dirName;
 }
 
-void logfile_scan(Logfile *self)
+void logfile_scan(Logfile *self, int reopen)
 {
-}
+    int fd;
+    char buf[SCAN_BUFSIZE];
 
-void logfile_reset(Logfile *self)
-{
-    self->readpos = 0L;
+    if (reopen && self->file)
+    {
+	fclose(self->file);
+	self->file = NULL;
+    }
+
+    if (!self->file)
+    {
+	self->file = fopen(self->name, "r");
+	if (!self->file)
+	{
+	    daemon_printf_level(LEVEL_WARNING,
+		    "Could not open `%s': %s", self->name, strerror(errno));
+	    return;
+	}
+	fd = fileno(self->file);
+	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+	fseeko(self->file, 0L, SEEK_END);
+	if (ftello(self->file) <= MAX_SCAN_COMPLETE_FILE)
+	{
+	    rewind(self->file);
+	}
+    }
+
+    while (fgets(buf, SCAN_BUFSIZE, self->file))
+    {
+
+	daemon_printf_level(LEVEL_DEBUG,
+		"[logfile.c] [%s] got line: %s", self->name, buf);
+    }
+
+    if (errno != EWOULDBLOCK && errno != EAGAIN && errno != ENOENT)
+    {
+	daemon_printf_level(LEVEL_WARNING,
+		"Can't read from `%s': %s", self->name, strerror(errno));
+    }
 }
 

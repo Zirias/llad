@@ -23,6 +23,7 @@ svcmain(void *data)
     const CfgAct *cfgAct;
     CfgLogItor *li;
     CfgActItor *ai;
+    LogfileItor *i;
 
     daemon_print("Daemon started");
 
@@ -42,6 +43,17 @@ svcmain(void *data)
     cfgLogItor_free(li);
 
     LogfileList_init();
+
+    while (!sleep(1))
+    {
+	i = LogfileList_itor();
+	while (logfileItor_moveNext(i))
+	{
+	    logfile_scan(logfileItor_current(i), 0);
+	}
+	logfileItor_free(i);
+    }
+
     LogfileList_done();
 
     daemon_print("Daemon stopped");

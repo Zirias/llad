@@ -18,7 +18,7 @@ void logfileItor_free(LogfileItor *self);
 
 const char *logfile_name(const Logfile *self);
 const char *logfile_dirName(const Logfile *self);
-ssize_t logfile_read(Logfile *self, char *buf, size_t readMax);
+void logfile_scan(Logfile *self);
 void logfile_reset(Logfile *self);
 
 #endif

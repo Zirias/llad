@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -O3 -Wall -Werror -pedantic -std=c99
 
-llad_OBJS := obj/llad.o obj/util.o obj/daemon.o obj/config.o
+llad_OBJS := obj/llad.o obj/util.o obj/daemon.o obj/config.o obj/logfile.o
 llad_LIBS := -lpopt
 
 llad: $(llad_OBJS)

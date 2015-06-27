@@ -6,6 +6,7 @@
 
 #include "config.h"
 #include "daemon.h"
+#include "logfile.h"
 #include "util.h"
 
 static const struct poptOption opts[] = {
@@ -39,6 +40,9 @@ svcmain(void *data)
 	cfgActItor_free(ai);
     }
     cfgLogItor_free(li);
+
+    LogfileList_init();
+    LogfileList_done();
 
     daemon_print("Daemon stopped");
 

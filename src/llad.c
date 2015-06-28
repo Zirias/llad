@@ -20,28 +20,6 @@ static const struct poptOption opts[] = {
 static int
 svcmain(void *data)
 {
-    const CfgLog *cfgLog;
-    const CfgAct *cfgAct;
-    CfgLogItor *li;
-    CfgActItor *ai;
-
-    daemon_print("Daemon started");
-
-    for (li = Config_cfgLogItor();
-	    cfgLogItor_moveNext(li), cfgLog = cfgLogItor_current(li);)
-    {
-	daemon_printf("Logfile: %s", cfgLog_name(cfgLog));
-	for (ai = cfgLog_cfgActItor(cfgLog);
-		cfgActItor_moveNext(ai), cfgAct = cfgActItor_current(ai);)
-	{
-	    daemon_printf("  Action: %s", cfgAct_name(cfgAct));
-	    daemon_printf("    Pattern: %s", cfgAct_pattern(cfgAct));
-	    daemon_printf("    Command: %s", cfgAct_command(cfgAct));
-	}
-	cfgActItor_free(ai);
-    }
-    cfgLogItor_free(li);
-
     LogfileList_init();
     Watcher_watchlogs();
     LogfileList_done();

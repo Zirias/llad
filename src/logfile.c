@@ -52,7 +52,6 @@ logfile_new(const CfgLog *cl)
     {
 	daemon_printf_level(LEVEL_WARNING,
 		"Can't get real directory of `%s': %s", tmp, strerror(errno));
-	free(dirName);
 	free(tmp);
 	return NULL;
     }

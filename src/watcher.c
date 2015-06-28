@@ -73,8 +73,11 @@ registerFile(Logfile *log)
     }
     if (next->inwd > 0)
     {
-	daemon_printf_level(LEVEL_INFO,
-		"Watching file `%s'", logfile_name(log));
+	daemon_printf("Watching file `%s'", logfile_name(log));
+    }
+    else
+    {
+	daemon_printf("Watching non-existent file `%s'", logfile_name(log));
     }
 }
 
@@ -121,8 +124,7 @@ registerDir(Logfile *log)
     }
     if (nextDir->inwd > 0)
     {
-	daemon_printf_level(LEVEL_INFO,
-		"Watching dir `%s'", logfile_dirName(log));
+	daemon_printf("Watching dir `%s'", logfile_dirName(log));
     }
 }
 

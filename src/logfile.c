@@ -41,12 +41,12 @@ logfile_new(const CfgLog *cl)
 {
     struct stat st;
     int fd;
+    char *realName;
     Logfile *curr;
     Logfile *self = NULL;
     char *tmp = lladCloneString(cfgLog_name(cl));
     char *baseName = basename(tmp);
     char *dirName = realpath(dirname(tmp), NULL);
-    char *realName;
 
     if (!dirName)
     {

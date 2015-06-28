@@ -1,9 +1,12 @@
+#define _POSIX_C_SOURCE 200809L
 #include "watcher.h"
 
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/inotify.h>
 #include <string.h>
+#include <signal.h>
+#include <errno.h>
 
 #include "logfile.h"
 #include "daemon.h"
@@ -44,6 +47,7 @@ static int Watcher_init(void);
 static void Watcher_done(void);
 
 static int infd = -1;
+static int running = 0;
 static WatcherDir *firstDir = NULL;
 static WatcherFile *firstFile = NULL;
 static char evbuf[EVENT_BUFSIZE]
@@ -122,6 +126,51 @@ registerDir(Logfile *log)
     }
 }
 
+static void
+sighdl(int signum)
+{
+    if (signum == SIGTERM || signum == SIGINT)
+    {
+	daemon_printf("Received signal %s: terminating ...",
+		strsignal(signum));
+	running = 0;
+    }
+    else
+    {
+	daemon_printf("Ignoring signal %s", strsignal(signum));
+    }
+}
+
+static void
+initSignals(void)
+{
+    struct sigaction handler;
+    memset(&handler, 0, sizeof(handler));
+    handler.sa_handler = &sighdl;
+    sigemptyset(&(handler.sa_mask));
+    sigaddset(&(handler.sa_mask), SIGTERM);
+    sigaddset(&(handler.sa_mask), SIGINT);
+    sigaddset(&(handler.sa_mask), SIGHUP);
+    sigaddset(&(handler.sa_mask), SIGUSR1);
+    sigaction(SIGTERM, &handler, NULL);
+    sigaction(SIGINT, &handler, NULL);
+    sigaction(SIGHUP, &handler, NULL);
+    sigaction(SIGUSR1, &handler, NULL);
+}
+
+static void
+doneSignals(void)
+{
+    struct sigaction handler;
+    memset(&handler, 0, sizeof(handler));
+    handler.sa_handler = SIG_DFL;
+    sigemptyset(&(handler.sa_mask));
+    sigaction(SIGTERM, &handler, NULL);
+    sigaction(SIGINT, &handler, NULL);
+    sigaction(SIGHUP, &handler, NULL);
+    sigaction(SIGUSR1, &handler, NULL);
+}
+
 static int
 Watcher_init(void)
 {
@@ -143,6 +192,8 @@ Watcher_init(void)
 	registerFile(log);
     }
     logfileItor_free(i);
+    initSignals();
+    running = 1;
     return 1;
 }
 
@@ -153,6 +204,8 @@ Watcher_done(void)
     WatcherDir *dcurr, *dlast;
     WatcherDirEntry *ecurr, *elast;
 
+    running = 0;
+    doneSignals();
     fcurr = firstFile;
     while (fcurr)
     {
@@ -263,26 +316,32 @@ watchloop(void)
     int chunk, pos;
     const struct inotify_event *ev;
 
-    while ((chunk = read(infd, &evbuf, EVENT_BUFSIZE)) > 0)
+    while (running)
     {
-	pos = 0;
-	while (pos < chunk)
+	while ((chunk = read(infd, &evbuf, EVENT_BUFSIZE)) > 0)
 	{
-	    ev = (void *)(&evbuf[pos]);
-	    if (ev->mask & IN_MODIFY)
+	    pos = 0;
+	    while (pos < chunk)
 	    {
-		fileModified(ev->wd);
+		ev = (void *)(&evbuf[pos]);
+		if (ev->mask & IN_MODIFY)
+		{
+		    fileModified(ev->wd);
+		}
+		if (ev->mask & (IN_MOVE_SELF | IN_DELETE_SELF))
+		{
+		    fileDeleted(ev->wd);
+		}
+		if (ev->mask & IN_CREATE)
+		{
+		    fileCreated(ev->wd, ev->name);
+		}
+		pos += sizeof(struct inotify_event) + ev->len;
 	    }
-	    if (ev->mask & (IN_MOVE_SELF | IN_DELETE_SELF))
-	    {
-		fileDeleted(ev->wd);
-	    }
-	    if (ev->mask & IN_CREATE)
-	    {
-		fileCreated(ev->wd, ev->name);
-	    }
-	    pos += sizeof(struct inotify_event) + ev->len;
 	}
+	daemon_printf_level(LEVEL_DEBUG,
+		"inotify read() failed: %s", strerror(errno));
+	if (errno != EAGAIN && errno != EINTR) break;
     }
 }
 

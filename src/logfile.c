@@ -180,11 +180,13 @@ logfile_dirName(const Logfile *self)
 
 void logfile_scan(Logfile *self, int reopen)
 {
-    int fd;
     char buf[SCAN_BUFSIZE];
+    struct stat st;
+    int fd;
 
     if (reopen && self->file)
     {
+	daemon_printf_level(LEVEL_NOTICE, "Reopening %s", self->name);
 	fclose(self->file);
 	self->file = NULL;
     }
@@ -205,8 +207,29 @@ void logfile_scan(Logfile *self, int reopen)
 	{
 	    rewind(self->file);
 	}
+	else return;
     }
-
+    else
+    {
+	fstat(fileno(self->file), &st);
+	if (st.st_size < ftello(self->file))
+	{
+	    daemon_printf_level(LEVEL_NOTICE,
+		    "%s: truncation detected", self->name);
+	    fclose(self->file);
+	    self->file = fopen(self->name, "r");
+	    if (!self->file)
+	    {
+		daemon_printf_level(LEVEL_WARNING,
+			"Could not open `%s': %s", self->name, strerror(errno));
+		return;
+	    }
+	    fd = fileno(self->file);
+	    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+	    fseeko(self->file, 0L, SEEK_END);
+	    return;
+	}
+    }
     while (fgets(buf, SCAN_BUFSIZE, self->file))
     {
 

@@ -1,5 +1,6 @@
 #define _FILE_OFFSET_BITS 64
 #define _POSIX_C_SOURCE 200112L
+#define _XOPEN_SOURCE 500
 #include "logfile.h"
 
 #include <stdio.h>
@@ -10,6 +11,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <limits.h>
 
 #include "config.h"
 #include "daemon.h"
@@ -38,14 +41,27 @@ logfile_new(const CfgLog *cl)
 {
     struct stat st;
     int fd;
+    Logfile *curr;
     Logfile *self = NULL;
     char *tmp = lladCloneString(cfgLog_name(cl));
-    char *dirName = dirname(tmp);
+    char *baseName = basename(tmp);
+    char *dirName = realpath(dirname(tmp), NULL);
+    char *realName;
+
+    if (!dirName)
+    {
+	daemon_printf_level(LEVEL_WARNING,
+		"Can't get real directory of `%s': %s", tmp, strerror(errno));
+	free(dirName);
+	free(tmp);
+	return NULL;
+    }
 
     if (stat(dirName, &st) < 0)
     {
 	daemon_printf_level(LEVEL_WARNING,
 		"Could not stat `%s': %s", dirName, strerror(errno));
+	free(dirName);
 	free(tmp);
 	return NULL;
     }
@@ -54,13 +70,32 @@ logfile_new(const CfgLog *cl)
     {
 	daemon_printf_level(LEVEL_WARNING,
 		"%s: Not a directory", dirName);
+	free(dirName);
 	free(tmp);
 	return NULL;
     }
 
+    realName = lladAlloc(strlen(dirName) + strlen(baseName) + 2);
+    strcpy(realName, dirName);
+    strcat(realName, "/");
+    strcat(realName, baseName);
+
+    curr = firstLog;
+    while (curr)
+    {
+	if (!strcmp(curr->name, realName))
+	{
+	    free(realName);
+	    free(dirName);
+	    free(tmp);
+	    return NULL;
+	}
+	curr = curr->next;
+    }
+
     self = lladAlloc(sizeof(Logfile));
-    self->name = lladCloneString(cfgLog_name(cl));
-    self->dirName = lladCloneString(dirName);
+    self->name = realName;
+    self->dirName = dirName;
     free(tmp);
     self->file = NULL;
 

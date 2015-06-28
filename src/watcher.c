@@ -131,7 +131,7 @@ sighdl(int signum)
 {
     if (signum == SIGTERM || signum == SIGINT)
     {
-	daemon_printf("Received signal %s: terminating ...",
+	daemon_printf("Received signal %s: stopping daemon.",
 		strsignal(signum));
 	running = 0;
     }

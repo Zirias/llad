@@ -1,6 +1,10 @@
-*.o
 *.swp
 sbin/*
 obj/*
 conf.mk
+debian/llad/*
+debian/*.log
+debian/*.debhelper
+debian/*.substvars
+debian/files
 

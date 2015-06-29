@@ -1,0 +1,15 @@
+Source: llad
+Section: utils
+Priority: optional
+Maintainer: Felix Palmen <felix@palmen-it.de>
+Build-Depends: debhelper (>= 9), libpcre3-dev, libpopt-dev
+Standards-Version: 3.9.5
+Homepage: https://github.com/Zirias/llad
+
+Package: llad
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Linux Log Action Daemon (watch logs, act on patterns)
+ The Linux Log Action Daemon is a little tool allowing to use log files as a
+ source of events. Based on a config file, llad watches several logfiles and
+ executes some custom action as soon as a pattern matches a new log line.

@@ -1,4 +1,6 @@
 *.o
 *.swp
-llad
+sbin/*
+obj/*
+conf.mk
 

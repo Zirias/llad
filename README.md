@@ -50,14 +50,14 @@ The Makefile (GNU make) understands the following options for "make":
 
 - DEBUG=1: create a build with debugging info
 
-- prefix=<path> (default: /usr/local) the prefix for the running installation
+- prefix={path} (default: /usr/local) the prefix for the running installation
 
-- sysconfdir=<path> (default: <prefix>/etc) the location of configuration
+- sysconfdir={path} (default: {prefix}/etc) the location of configuration
   files. llad creates its own subdirectory "llad" and commands for executing
-  are in <sysconfdir>/llad/command by default.
+  are in {sysconfdir}/llad/command by default.
 
-- localstatedir=<path> (default: <prefix>/var) -- this is used for the default
-  location of llad's pidfile (<localstatedir>/run/llad.pid).
+- localstatedir={path} (default: {prefix}/var) -- this is used for the default
+  location of llad's pidfile ({localstatedir}/run/llad.pid).
 
 ### Install configuration
 

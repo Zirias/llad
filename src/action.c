@@ -4,6 +4,11 @@
 #include <pthread.h>
 #include <signal.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <pcre.h>
 
 #include "daemon.h"
@@ -25,6 +30,7 @@ struct actionExecArgs
 {
     const char *logname;
     const char *actname;
+    const char *cmdname;
     char **cmd;
 };
 
@@ -103,12 +109,12 @@ createExecArgs(const Action *self, const char *logname,
     struct actionExecArgs *args = lladAlloc(sizeof(struct actionExecArgs));
     args->logname = logname;
     args->actname = cfgAct_name(self->cfgAct);
+    args->cmdname = cfgAct_command(self->cfgAct);
     args->cmd = lladAlloc((numArgs + 2) * sizeof(char *));
 
-    cmdName = lladAlloc(strlen(cmdpath) +
-	    strlen(cfgAct_command(self->cfgAct)) + 1);
+    cmdName = lladAlloc(strlen(cmdpath) + strlen(args->cmdname) + 1);
     strcpy(cmdName, cmdpath);
-    strcat(cmdName, cfgAct_command(self->cfgAct));
+    strcat(cmdName, args->cmdname);
     args->cmd[0] = cmdName;
 
     for (i = 0; i < numArgs; ++i)
@@ -139,12 +145,68 @@ freeExecArgs(struct actionExecArgs *args)
 void *
 actionExec(void *argsPtr)
 {
+    int fds[2];
+    int devnull;
+    int len;
+    pid_t pid;
+    char buf[1024];
+    FILE *output;
     struct actionExecArgs *args = argsPtr;
 
     daemon_printf_level(LEVEL_DEBUG,
 	    "[%s]: Thread for action `%s' started.",
 	    args->logname, args->actname);
 
+    if (pipe(fds) < 0)
+    {
+	daemon_perror("pipe()");
+	goto actionExec_done;
+    }
+
+    pid = fork();
+    if (pid < 0)
+    {
+	daemon_perror("fork()");
+	goto actionExec_done;
+    }
+
+    if (pid)
+    {
+	close(fds[1]);
+	output = fdopen(fds[0], "r");
+
+	if (output)
+	{
+	    while (fgets(buf, 1024, output))
+	    {
+		len = strlen(buf);
+		if (buf[len-1] == '\n') buf[len-1] = '\0';
+		if (buf[len-2] == '\n') buf[len-2] = '\0';
+		daemon_printf("[%s %s] [%s %d] %s",
+			args->logname, args->actname,
+			args->cmdname, pid, buf);
+	    }
+	    fclose(output);
+	}
+	else
+	{
+	    close(fds[0]);
+	}
+    }
+    else
+    {
+	close(fds[0]);
+	devnull = open("/dev/null", O_RDONLY);
+	dup2(devnull, STDIN_FILENO);
+	dup2(fds[1], STDOUT_FILENO);
+	dup2(fds[1], STDERR_FILENO);
+	execv(args->cmd[0], args->cmd);
+	fprintf(stderr, "Cannot execute `%s': %s\n",
+		args->cmd[0], strerror(errno));
+	exit(EXIT_FAILURE);
+    }
+
+actionExec_done:
     freeExecArgs(args);
     return NULL;
 }

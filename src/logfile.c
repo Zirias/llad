@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <limits.h>
 
+#include "action.h"
 #include "config.h"
 #include "daemon.h"
 #include "util.h"
@@ -26,6 +27,7 @@ struct logfile
     char *name;
     char *dirName;
     FILE *file;
+    Action *first;
     Logfile *next;
 };
 

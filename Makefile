@@ -10,6 +10,8 @@ prefix := /usr/local
 
 sbindir := $(prefix)/sbin
 sysconfdir := $(prefix)/etc
+localstatedir := $(prefix)/var
+runstatedir := $(localstatedir)/run
 
 VTAGS :=
 V := 0
@@ -49,16 +51,18 @@ conf.mk:
 	$(VR)echo "C_CC :=$(CC)" >conf.mk
 	$(VR)echo "C_DEBUG :=$(DEBUG)" >>conf.mk
 	$(VR)echo "C_sysconfdir :=$(sysconfdir)" >>conf.mk
+	$(VR)echo "C_runstatedir :=$(runstatedir)" >>conf.mk
 
 -include conf.mk
 
-ifneq ($(strip $(C_CC))_$(strip $(C_DEBUG))_$(strip $(C_sysconfdir)),$(strip $(CC))_$(strip $(DEBUG))_$(strip $(sysconfdir)))
+ifneq ($(strip $(C_CC))_$(strip $(C_DEBUG))_$(strip $(C_sysconfdir))_$(strip $(C_runstatedir)),$(strip $(CC))_$(strip $(DEBUG))_$(strip $(sysconfdir))_$(strip $(runstatedir)))
 .PHONY: conf.mk
 endif
 endif
 endif
 
-llad_DEFINES := -DSYSCONFDIR="$(sysconfdir)"
+llad_DEFINES := -DSYSCONFDIR="\"$(sysconfdir)\"" \
+	-DRUNSTATEDIR="\"$(runstatedir)\""
 llad_OBJS := obj/llad.o obj/util.o obj/daemon.o obj/config.o obj/logfile.o \
     obj/watcher.o obj/action.o
 llad_LIBS := -pthread -lpopt -lpcre

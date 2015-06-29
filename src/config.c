@@ -4,13 +4,13 @@
 
 #include "util.h"
 #include "daemon.h"
+#include "common.h"
 
-#define DEFAULT_CFG "/etc/llad/llad.conf"
 const char *configFile = NULL;
 
 const struct poptOption config_opts[] = {
     {"config", 'c', POPT_ARG_STRING, &configFile, 0,
-	"Load config from <path> instead of the default " DEFAULT_CFG, "path"},
+	"Load config from <path> instead of the default " LLADCONF, "path"},
     POPT_TABLEEND
 };
 
@@ -442,7 +442,7 @@ Config_init(void)
     }
     else
     {
-	cfgFile = DEFAULT_CFG;
+	cfgFile = LLADCONF;
     }
 
     if ((cfg = fopen(cfgFile, "r")))

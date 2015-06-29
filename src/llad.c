@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <libgen.h>
 
+#include "action.h"
 #include "config.h"
 #include "daemon.h"
 #include "logfile.h"
@@ -11,6 +12,7 @@
 #include "util.h"
 
 static const struct poptOption opts[] = {
+    ACTION_OPTS
     CONFIG_OPTS
     DAEMON_OPTS
     POPT_AUTOHELP

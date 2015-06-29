@@ -11,10 +11,9 @@
 #include <errno.h>
 #include <pcre.h>
 
+#include "common.h"
 #include "daemon.h"
 #include "util.h"
-
-#define CMDPATH "/etc/llad/command/"
 
 struct action
 {
@@ -34,7 +33,14 @@ struct actionExecArgs
     char **cmd;
 };
 
-static char *cmdpath = CMDPATH;
+static char *cmdpath = NULL;
+
+const struct poptOption action_opts[] = {
+    {"cmd", 'p', POPT_ARG_STRING, &cmdpath, 0,
+	"Look for commands in <path> instead of the default " LLADCOMMANDS,
+	"path"},
+    POPT_TABLEEND
+};
 
 static int siginitialized = 0;
 static void
@@ -46,6 +52,13 @@ initsig(void)
     sigemptyset(&(handler.sa_mask));
     sigaction(SIGCHLD, &handler, NULL);
     siginitialized = 1;
+}
+
+static int cleanupInstalled = 0;
+static void
+cleanup(void)
+{
+    free((void *)cmdpath);
 }
 
 Action *
@@ -94,6 +107,12 @@ action_appendNew(Action *self, const CfgAct *cfgAct)
     next->extra = extra;
     next->ovecsize = ovecsize;
 
+    if (!cleanupInstalled)
+    {
+	cleanupInstalled = 1;
+	atexit(&cleanup);
+    }
+
     return action_append(self, next);
 }
 
@@ -103,8 +122,12 @@ createExecArgs(const Action *self, const char *logname,
 {
     char *cmdName;
     char *arg;
+    const char *path;
     int i;
     size_t captureLength;
+
+    path = cmdpath;
+    if (!path) path = LLADCOMMANDS;
 
     struct actionExecArgs *args = lladAlloc(sizeof(struct actionExecArgs));
     args->logname = logname;
@@ -112,8 +135,9 @@ createExecArgs(const Action *self, const char *logname,
     args->cmdname = cfgAct_command(self->cfgAct);
     args->cmd = lladAlloc((numArgs + 2) * sizeof(char *));
 
-    cmdName = lladAlloc(strlen(cmdpath) + strlen(args->cmdname) + 1);
-    strcpy(cmdName, cmdpath);
+    cmdName = lladAlloc(strlen(path) + strlen(args->cmdname) + 2);
+    strcpy(cmdName, path);
+    strcat(cmdName, "/");
     strcat(cmdName, args->cmdname);
     args->cmd[0] = cmdName;
 
@@ -139,6 +163,7 @@ freeExecArgs(struct actionExecArgs *args)
 	free (*argptr);
 	++argptr;
     }
+    free(args->cmd);
     free(args);
 }
 

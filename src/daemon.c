@@ -20,7 +20,7 @@ static const char *pidfile = NULL;
 static int loglevel = LEVEL_NOTICE;
 static int logfacility = 0;
 
-#define PIDFILE_DEFAULT "/var/run/%s.pid"
+#define PIDFILE_DEFAULT RUNSTATEDIR "/%s.pid"
 
 static const int loglvl[] = {
     LOG_DEBUG,
@@ -46,7 +46,8 @@ static const char * const strlvl[] = {
 
 static char pidfileHelp[1024];
 #define PID_HLP_PATTERN "Write daemon pid to the file specified in <path>, " \
-    "defaults to /var/run/%s.pid -- pass empty string to disable pidfile."
+    "defaults to " RUNSTATEDIR \
+    "/%s.pid -- pass empty string to disable pidfile."
 
 const struct poptOption daemon_opts[] = {
     {"no-detach", 'd', POPT_ARG_NONE, &nodetach, 0,

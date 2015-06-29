@@ -3,6 +3,11 @@
 
 #include "config.h"
 
+#include <popt.h>
+
+extern const struct poptOption action_opts[];
+#define ACTION_OPTS {NULL, '\0', POPT_ARG_INCLUDE_TABLE, (struct poptOption *)action_opts, 0, "Action options:", NULL},
+
 struct action;
 typedef struct action Action;
 

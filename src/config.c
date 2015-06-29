@@ -294,6 +294,9 @@ parseActions(CfgLog *log, char *line)
 			free(st.name);
 			free(st.pattern);
 			free(st.command);
+			st.name = NULL;
+			st.pattern = NULL;
+			st.command = NULL;
 		    }
 		    memset(&st, 0, sizeof(struct state));
 		    st.lastLog = log;

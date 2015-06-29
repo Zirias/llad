@@ -6,12 +6,16 @@ CFLAGS += -Wall -Werror -pedantic -std=c99 \
 
 CCDEP := $(CC) -MM
 
+INSTALL := install
+
 prefix := /usr/local
 
 sbindir := $(prefix)/sbin
 sysconfdir := $(prefix)/etc
 localstatedir := $(prefix)/var
 runstatedir := $(localstatedir)/run
+docbasedir := $(prefix)/share/doc
+docdir := $(docbasedir)/llad
 
 VTAGS :=
 V := 0
@@ -86,6 +90,14 @@ sbin:
 
 strip: all
 	$(VR)strip --strip-all sbin/llad
+
+install: strip
+	$(INSTALL) -d $(DESTDIR)$(sbindir)
+	$(INSTALL) -d $(DESTDIR)$(docdir)/examples/command
+	$(INSTALL) sbin/llad $(DESTDIR)$(sbindir)
+	$(INSTALL) -m644 README.md $(DESTDIR)$(docdir)
+	$(INSTALL) -m644 examples/llad.conf $(DESTDIR)$(docdir)/examples
+	$(INSTALL) -m755 examples/command/* $(DESTDIR)$(docdir)/examples/command
 
 obj/%.d: src/%.c Makefile conf.mk | obj
 	$(VDEP)

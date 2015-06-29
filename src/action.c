@@ -1,5 +1,6 @@
 #include "action.h"
 
+#include <string.h>
 #include <pcre.h>
 
 #include "daemon.h"
@@ -65,8 +66,22 @@ action_appendNew(Action *self, const CfgAct *cfgAct)
 }
 
 int
-action_matchAndExecChain(const Action *self, const char *line)
+action_matchAndExecChain(Action *self, const char *logname, const char *line)
 {
+    int rc;
+
+    while (self)
+    {
+	rc = pcre_exec(self->re, self->extra, line, strlen(line), 0, 0,
+		self->ovec, self->ovecsize);
+	if (rc > 0)
+	{
+	    daemon_printf("[%s]: Action `%s' matched, executing `%s'.",
+		    logname, cfgAct_name(self->cfgAct),
+		    cfgAct_command(self->cfgAct));
+	}
+	self = self->next;
+    }
     return 1;
 }
 

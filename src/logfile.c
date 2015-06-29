@@ -314,6 +314,7 @@ void logfile_scan(Logfile *self, int reopen)
 
 	daemon_printf_level(LEVEL_DEBUG,
 		"[logfile.c] [%s] got line: %s", self->name, buf);
+	action_matchAndExecChain(self->first, self->name, buf);
     }
 
     if (errno != EWOULDBLOCK && errno != EAGAIN && errno != ENOENT)

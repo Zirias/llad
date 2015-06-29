@@ -114,5 +114,5 @@ obj/%.o: src/%.c Makefile conf.mk | obj
 	$(VCC)
 	$(VR)$(CC) $(llad_DEFINES) $(CFLAGS) -c -o $@ $<
 
-.PHONY: all clean distclean strip
+.PHONY: all clean distclean strip install
 

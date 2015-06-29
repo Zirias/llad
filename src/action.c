@@ -27,7 +27,6 @@ struct action
 
 struct actionExecArgs
 {
-    const char *logname;
     const char *actname;
     const char *cmdname;
     char **cmd;
@@ -117,8 +116,7 @@ action_appendNew(Action *self, const CfgAct *cfgAct)
 }
 
 struct actionExecArgs *
-createExecArgs(const Action *self, const char *logname,
-	const char *line, int numArgs)
+createExecArgs(const Action *self, const char *line, int numArgs)
 {
     char *cmdName;
     char *arg;
@@ -130,7 +128,6 @@ createExecArgs(const Action *self, const char *logname,
     if (!path) path = LLADCOMMANDS;
 
     struct actionExecArgs *args = lladAlloc(sizeof(struct actionExecArgs));
-    args->logname = logname;
     args->actname = cfgAct_name(self->cfgAct);
     args->cmdname = cfgAct_command(self->cfgAct);
     args->cmd = lladAlloc((numArgs + 2) * sizeof(char *));
@@ -174,13 +171,13 @@ actionExec(void *argsPtr)
     int devnull;
     int len;
     pid_t pid;
-    char buf[1024];
+    char buf[4096];
     FILE *output;
     struct actionExecArgs *args = argsPtr;
 
     daemon_printf_level(LEVEL_DEBUG,
-	    "[%s]: Thread for action `%s' started.",
-	    args->logname, args->actname);
+	    "[action.c] Thread for action `%s' started.",
+	    args->actname);
 
     if (pipe(fds) < 0)
     {
@@ -202,14 +199,13 @@ actionExec(void *argsPtr)
 
 	if (output)
 	{
-	    while (fgets(buf, 1024, output))
+	    while (fgets(buf, 4096, output))
 	    {
 		len = strlen(buf);
 		if (buf[len-1] == '\n') buf[len-1] = '\0';
 		if (buf[len-2] == '\r') buf[len-2] = '\0';
-		daemon_printf("[%s %s] [%s %d] %s",
-			args->logname, args->actname,
-			args->cmdname, pid, buf);
+		daemon_printf("[%s] [%s:%d] %s",
+			args->actname, args->cmdname, pid, buf);
 	    }
 	    fclose(output);
 	}
@@ -236,7 +232,7 @@ actionExec_done:
     return NULL;
 }
 
-int
+void
 action_matchAndExecChain(Action *self, const char *logname, const char *line)
 {
     int rc;
@@ -254,7 +250,7 @@ action_matchAndExecChain(Action *self, const char *logname, const char *line)
 		    cfgAct_command(self->cfgAct));
 
 	    struct actionExecArgs *args = createExecArgs(
-		    self, logname, line, rc);
+		    self, line, rc);
 
 	    if (!siginitialized) initsig();
 
@@ -271,7 +267,6 @@ action_matchAndExecChain(Action *self, const char *logname, const char *line)
 	}
 	self = self->next;
     }
-    return 1;
 }
 
 void

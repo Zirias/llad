@@ -317,7 +317,7 @@ void logfile_scan(Logfile *self, int reopen)
 	action_matchAndExecChain(self->first, self->name, buf);
     }
 
-    if (errno != EWOULDBLOCK && errno != EAGAIN && errno != ENOENT)
+    if (errno && errno != EWOULDBLOCK && errno != EAGAIN && errno != ENOENT)
     {
 	daemon_printf_level(LEVEL_WARNING,
 		"Can't read from `%s': %s", self->name, strerror(errno));

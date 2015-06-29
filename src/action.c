@@ -181,7 +181,7 @@ actionExec(void *argsPtr)
 	    {
 		len = strlen(buf);
 		if (buf[len-1] == '\n') buf[len-1] = '\0';
-		if (buf[len-2] == '\n') buf[len-2] = '\0';
+		if (buf[len-2] == '\r') buf[len-2] = '\0';
 		daemon_printf("[%s %s] [%s %d] %s",
 			args->logname, args->actname,
 			args->cmdname, pid, buf);

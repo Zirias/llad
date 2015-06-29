@@ -1,10 +1,14 @@
 #include "action.h"
 
+#include <pcre.h>
+
+#include "daemon.h"
 #include "util.h"
 
 struct action
 {
     const CfgAct *cfgAct;
+    pcre *re;
     Action *next;
 };
 
@@ -26,10 +30,23 @@ action_append(Action *self, Action *act)
 Action *
 action_appendNew(Action *self, const CfgAct *cfgAct)
 {
-    Action *next = lladAlloc(sizeof(Action));
+    Action *next;
+    pcre *re;
+    const char *error;
+    int erroffset;
 
+    re = pcre_compile(cfgAct_pattern(cfgAct), 0, &error, &erroffset, NULL);
+    if (!re)
+    {
+	daemon_printf_level(LEVEL_WARNING,
+		"Action `%s' error in pattern: %s", cfgAct_name(cfgAct), error);
+	return NULL;
+    }
+
+    next = lladAlloc(sizeof(Action));
     next->next = NULL;
     next->cfgAct = cfgAct;
+    next->re = re;
 
     return action_append(self, next);
 }
@@ -51,6 +68,7 @@ action_free(Action *self)
     {
 	last = curr;
 	curr = last->next;
+	pcre_free(last->re);
 	free(last);
     }
 }

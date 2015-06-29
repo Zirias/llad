@@ -8,8 +8,11 @@
 struct action
 {
     const CfgAct *cfgAct;
-    pcre *re;
     Action *next;
+    pcre *re;
+    pcre_extra *extra;
+    int ovecsize;
+    int ovec[];
 };
 
 Action *
@@ -32,6 +35,8 @@ action_appendNew(Action *self, const CfgAct *cfgAct)
 {
     Action *next;
     pcre *re;
+    pcre_extra *extra;
+    int ovecsize;
     const char *error;
     int erroffset;
 
@@ -39,14 +44,22 @@ action_appendNew(Action *self, const CfgAct *cfgAct)
     if (!re)
     {
 	daemon_printf_level(LEVEL_WARNING,
-		"Action `%s' error in pattern: %s", cfgAct_name(cfgAct), error);
+		"Action `%s' error in pattern: %s",
+		cfgAct_name(cfgAct), error);
 	return NULL;
     }
+    extra = pcre_study(re, PCRE_STUDY_JIT_COMPILE, &error);
+    ovecsize = 0;
+    pcre_fullinfo(re, extra, PCRE_INFO_CAPTURECOUNT, &ovecsize);
+    ++ovecsize;
+    ovecsize *= 3;
 
-    next = lladAlloc(sizeof(Action));
+    next = lladAlloc(sizeof(Action) + ovecsize * sizeof(int));
     next->next = NULL;
     next->cfgAct = cfgAct;
     next->re = re;
+    next->extra = extra;
+    next->ovecsize = ovecsize;
 
     return action_append(self, next);
 }
@@ -68,6 +81,7 @@ action_free(Action *self)
     {
 	last = curr;
 	curr = last->next;
+	pcre_free_study(last->extra);
 	pcre_free(last->re);
 	free(last);
     }

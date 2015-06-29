@@ -47,7 +47,7 @@ static int Watcher_init(void);
 static void Watcher_done(void);
 
 static int infd = -1;
-static int running = 0;
+static sig_atomic_t running = 0;
 static WatcherDir *firstDir = NULL;
 static WatcherFile *firstFile = NULL;
 static char evbuf[EVENT_BUFSIZE]

@@ -77,7 +77,7 @@ registerFile(Logfile *log)
     }
     else
     {
-	daemon_printf("Watching non-existent file `%s'", logfile_name(log));
+	daemon_printf("Watching non-accessible file `%s'", logfile_name(log));
     }
 }
 
@@ -194,6 +194,15 @@ Watcher_init(void)
 	registerFile(log);
     }
     logfileItor_free(i);
+
+    if (!firstFile && !firstDir)
+    {
+	daemon_print_level(LEVEL_ERR,
+		"Nothing to watch, check configuration.");
+	close(infd);
+	return 0;
+    }
+
     initSignals();
     running = 1;
     return 1;

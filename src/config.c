@@ -291,6 +291,9 @@ parseActions(CfgLog *log, char *line)
 			daemon_printf_level(LEVEL_WARNING,
 				"[config.c] Ignoring incomplete action `%s'",
 				st.name);
+			free(st.name);
+			free(st.pattern);
+			free(st.command);
 		    }
 		    memset(&st, 0, sizeof(struct state));
 		    st.lastLog = log;

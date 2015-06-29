@@ -9,22 +9,29 @@ struct action
 };
 
 Action *
-action_appendNew(Action *self, const CfgAct *cfgAct)
+action_append(Action *self, Action *act)
 {
     Action *curr;
-    Action *next = lladAlloc(sizeof(Action));
-
-    next->next = NULL;
-    next->cfgAct = cfgAct;
 
     if (self)
     {
 	curr = self;
 	while (curr->next) curr = curr->next;
-	curr->next = next;
+	curr->next = act;
     }
 
-    return next;
+    return act;
+}
+
+Action *
+action_appendNew(Action *self, const CfgAct *cfgAct)
+{
+    Action *next = lladAlloc(sizeof(Action));
+
+    next->next = NULL;
+    next->cfgAct = cfgAct;
+
+    return action_append(self, next);
 }
 
 int

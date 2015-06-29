@@ -38,6 +38,26 @@ struct logfileItor
 
 static Logfile *firstLog = NULL;
 
+static Action *
+createActions(const CfgLog *cl)
+{
+    Action *first = NULL;
+    Action *next;
+    CfgActItor *i;
+    const CfgAct *ca;
+
+    i = cfgLog_cfgActItor(cl);
+    while (cfgActItor_moveNext(i))
+    {
+	ca = cfgActItor_current(i);
+	next = action_appendNew(first, ca);
+	if (!first) first = next;
+    }
+    cfgActItor_free(i);
+
+    return first;
+}
+
 static Logfile *
 logfile_new(const CfgLog *cl)
 {
@@ -45,16 +65,27 @@ logfile_new(const CfgLog *cl)
     int fd;
     char *realName;
     Logfile *curr;
+    char *tmp, *baseName, *dirName;
     Logfile *self = NULL;
-    char *tmp = lladCloneString(cfgLog_name(cl));
-    char *baseName = basename(tmp);
-    char *dirName = realpath(dirname(tmp), NULL);
+    Action *action = createActions(cl);
+
+    if (!action)
+    {
+	daemon_printf_level(LEVEL_WARNING,
+		"Ignoring `%s' without actions.", cfgLog_name(cl));
+	return NULL;
+    }
+
+    tmp = lladCloneString(cfgLog_name(cl));
+    baseName = basename(tmp);
+    dirName = realpath(dirname(tmp), NULL);
 
     if (!dirName)
     {
 	daemon_printf_level(LEVEL_WARNING,
 		"Can't get real directory of `%s': %s", tmp, strerror(errno));
 	free(tmp);
+	action_free(action);
 	return NULL;
     }
 
@@ -64,6 +95,7 @@ logfile_new(const CfgLog *cl)
 		"Could not stat `%s': %s", dirName, strerror(errno));
 	free(dirName);
 	free(tmp);
+	action_free(action);
 	return NULL;
     }
 
@@ -73,6 +105,7 @@ logfile_new(const CfgLog *cl)
 		"%s: Not a directory", dirName);
 	free(dirName);
 	free(tmp);
+	action_free(action);
 	return NULL;
     }
 
@@ -89,6 +122,14 @@ logfile_new(const CfgLog *cl)
 	    free(realName);
 	    free(dirName);
 	    free(tmp);
+	    if (curr->first)
+	    {
+		action_append(curr->first, action);
+	    }
+	    else
+	    {
+		curr->first = action;
+	    }
 	    return NULL;
 	}
 	curr = curr->next;
@@ -113,6 +154,7 @@ logfile_new(const CfgLog *cl)
     }
 
     self->next = NULL;
+    self->first = action;
     return self;
 }
 
@@ -120,6 +162,7 @@ static void
 logfile_free(Logfile *self)
 {
     if (self->file) fclose(self->file);
+    action_free(self->first);
     free(self->dirName);
     free(self->name);
     free(self);

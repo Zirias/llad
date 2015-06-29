@@ -6,6 +6,7 @@
 struct action;
 typedef struct action Action;
 
+Action *action_append(Action *self, Action *act);
 Action *action_appendNew(Action *self, const CfgAct *cfgAct);
 
 int action_matchAndExecChain(const Action *self, const char *line);

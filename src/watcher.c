@@ -158,6 +158,8 @@ initSignals(void)
     sigaddset(&(handler.sa_mask), SIGINT);
     sigaddset(&(handler.sa_mask), SIGHUP);
     sigaddset(&(handler.sa_mask), SIGUSR1);
+    sigaddset(&(handler.sa_mask), SIGQUIT);
+    sigaddset(&(handler.sa_mask), SIGSTOP);
     sigaction(SIGTERM, &handler, NULL);
     sigaction(SIGINT, &handler, NULL);
     sigaction(SIGHUP, &handler, NULL);
@@ -169,7 +171,7 @@ doneSignals(void)
 {
     struct sigaction handler;
     memset(&handler, 0, sizeof(handler));
-    handler.sa_handler = SIG_DFL;
+    handler.sa_handler = SIG_IGN;
     sigemptyset(&(handler.sa_mask));
     sigaction(SIGTERM, &handler, NULL);
     sigaction(SIGINT, &handler, NULL);

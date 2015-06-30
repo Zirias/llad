@@ -304,6 +304,7 @@ actionExec(void *argsPtr)
     pid_t pid;
     char buf[4096];
     FILE *output;
+    sigset_t sigset;
     struct actionExecArgs *args = argsPtr;
 
     daemon_printf_level(LEVEL_DEBUG,
@@ -361,6 +362,9 @@ actionExec(void *argsPtr)
 	dup2(devnull, STDIN_FILENO);
 	dup2(fds[1], STDOUT_FILENO);
 	dup2(fds[1], STDERR_FILENO);
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGINT);
+	sigprocmask(SIG_BLOCK, &sigset, NULL);
 	execv(args->cmd[0], args->cmd);
 	fprintf(stderr, "Cannot execute `%s': %s\n",
 		args->cmd[0], strerror(errno));

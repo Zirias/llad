@@ -171,6 +171,7 @@ int
 daemon_daemonize(const daemon_loop daemon_main, void *data)
 {
     pid_t pid, sid;
+    struct sigaction handler;
     const char *pfn = NULL;
     char pfnbuf[1024];
     FILE *pf = NULL;
@@ -269,6 +270,18 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 	    daemon_perror("chdir(\"/\")");
 	    exit(EXIT_FAILURE);
 	}
+
+	memset(&handler, 0, sizeof(handler));
+	handler.sa_handler = SIG_IGN;
+	sigemptyset(&(handler.sa_mask));
+	sigaction(SIGQUIT, &handler, NULL);
+	sigaction(SIGTERM, &handler, NULL);
+	sigaction(SIGINT, &handler, NULL);
+	sigaction(SIGHUP, &handler, NULL);
+	sigaction(SIGUSR1, &handler, NULL);
+#ifndef DEBUG
+	sigaction(SIGSTOP, &handler, NULL);
+#endif
 
 	daemon_print("Daemon started -- forked into background.");
 

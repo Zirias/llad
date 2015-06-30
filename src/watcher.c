@@ -60,8 +60,7 @@ registerFile(Logfile *log)
     WatcherFile *next = lladAlloc(sizeof(WatcherFile));
     next->next = NULL;
     next->logfile = log;
-    next->inwd = inotify_add_watch(infd, logfile_name(log),
-	    IN_MODIFY | IN_MOVE_SELF | IN_DELETE_SELF);
+    next->inwd = inotify_add_watch(infd, logfile_name(log), IN_MODIFY);
     if (current)
     {
 	while (current->next) current = current->next;
@@ -77,7 +76,9 @@ registerFile(Logfile *log)
     }
     else
     {
-	daemon_printf("Watching non-accessible file `%s'", logfile_name(log));
+	daemon_printf_level(LEVEL_WARNING,
+		"Waiting to watch non-accessible or non-existent file `%s'",
+		logfile_name(log));
     }
 }
 
@@ -105,6 +106,7 @@ registerDir(Logfile *log)
 	    else current->entry.next = nextEntry;
 	    return;
 	}
+	current = current->next;
     }
 
     current = firstDir;
@@ -112,7 +114,9 @@ registerDir(Logfile *log)
     nextDir->next = NULL;
     nextDir->entry.next = NULL;
     nextDir->entry.logfile = log;
-    nextDir->inwd = inotify_add_watch(infd, logfile_dirName(log), IN_CREATE);
+    nextDir->inwd = inotify_add_watch(infd, logfile_dirName(log),
+	    IN_CREATE | IN_ATTRIB | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO
+	    | IN_EXCL_UNLINK | IN_ONLYDIR);
     if (current)
     {
 	while (current->next) current = current->next;
@@ -279,13 +283,37 @@ fileModified(int inwd)
 }
 
 static void
-fileDeleted(int inwd)
+fileDeleted(int inwd, const char *name)
 {
-    WatcherFile *wf = findFile(inwd);
-    if (wf)
+    WatcherDirEntry *entry;
+    WatcherFile *wf;
+    WatcherDir *wd = findDir(inwd);
+    if (wd)
     {
-	inotify_rm_watch(infd, wf->inwd);
-	wf->inwd = -1;
+	entry = &(wd->entry);
+	while (entry)
+	{
+	    if (!strcmp(logfile_baseName(entry->logfile), name))
+	    {
+		wf = firstFile;
+		while (wf)
+		{
+		    if (wf->logfile == entry->logfile) break;
+		    wf = wf->next;
+		}
+		if (wf)
+		{
+		    inotify_rm_watch(infd, wf->inwd);
+		    daemon_printf_level(LEVEL_WARNING,
+			    "File `%s' disappeared, waiting to watch it again.",
+			    logfile_name(wf->logfile));
+		    wf->inwd = -1;
+		    logfile_close(wf->logfile);
+		}
+		break;
+	    }
+	    entry = entry->next;
+	}
     }
 }
 
@@ -300,7 +328,7 @@ fileCreated(int inwd, const char *name)
 	entry = &(wd->entry);
 	while (entry)
 	{
-	    if (!strcmp(logfile_name(entry->logfile), name))
+	    if (!strcmp(logfile_baseName(entry->logfile), name))
 	    {		
 		wf = firstFile;
 		while (wf)
@@ -308,13 +336,26 @@ fileCreated(int inwd, const char *name)
 		    if (wf->logfile == entry->logfile) break;
 		    wf = wf->next;
 		}
-		if (wf)
+		if (wf && wf->inwd < 0)
 		{
-		    wf->inwd = inotify_add_watch(infd, name,
+		    wf->inwd = inotify_add_watch(infd,
+			    logfile_name(wf->logfile),
 			    IN_MODIFY | IN_MOVE_SELF | IN_DELETE_SELF);
-		    logfile_scan(wf->logfile, 1);
-		    break;
+		    if (wf->inwd > 0)
+		    {
+			daemon_printf("Watching file `%s'",
+				logfile_name(wf->logfile));
+			logfile_scan(wf->logfile, 1);
+		    }
+		    else
+		    {
+			daemon_printf_level(LEVEL_WARNING,
+				"Waiting to watch non-accessible newly "
+				"created file `%s'",
+				logfile_name(wf->logfile));
+		    }
 		}
+		break;
 	    }
 	    entry = entry->next;
 	}
@@ -335,17 +376,20 @@ watchloop(void)
 	    while (pos < chunk)
 	    {
 		ev = (void *)(&evbuf[pos]);
-		if (ev->mask & IN_MODIFY)
+		if (ev->len)
+		{
+		    if (ev->mask & (IN_MOVED_FROM | IN_DELETE))
+		    {
+			fileDeleted(ev->wd, ev->name);
+		    }
+		    else if (ev->mask & (IN_MOVED_TO | IN_ATTRIB | IN_CREATE))
+		    {
+			fileCreated(ev->wd, ev->name);
+		    }
+		}
+		else if (ev->mask & IN_MODIFY)
 		{
 		    fileModified(ev->wd);
-		}
-		if (ev->mask & (IN_MOVE_SELF | IN_DELETE_SELF))
-		{
-		    fileDeleted(ev->wd);
-		}
-		if (ev->mask & IN_CREATE)
-		{
-		    fileCreated(ev->wd, ev->name);
 		}
 		pos += sizeof(struct inotify_event) + ev->len;
 	    }

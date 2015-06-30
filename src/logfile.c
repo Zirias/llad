@@ -26,6 +26,7 @@ struct logfile
 {
     char *name;
     char *dirName;
+    char *baseName;
     FILE *file;
     Action *first;
     Logfile *next;
@@ -138,6 +139,7 @@ logfile_new(const CfgLog *cl)
     self = lladAlloc(sizeof(Logfile));
     self->name = realName;
     self->dirName = dirName;
+    self->baseName = lladCloneString(baseName);
     free(tmp);
     self->file = NULL;
 
@@ -163,6 +165,7 @@ logfile_free(Logfile *self)
 {
     if (self->file) fclose(self->file);
     action_free(self->first);
+    free(self->baseName);
     free(self->dirName);
     free(self->name);
     free(self);
@@ -257,6 +260,12 @@ logfile_dirName(const Logfile *self)
     return self->dirName;
 }
 
+const char *
+logfile_baseName(const Logfile *self)
+{
+    return self->baseName;
+}
+
 void
 logfile_scan(Logfile *self, int reopen)
 {
@@ -324,6 +333,16 @@ logfile_scan(Logfile *self, int reopen)
     {
 	daemon_printf_level(LEVEL_WARNING,
 		"Can't read from `%s': %s", self->name, strerror(errno));
+    }
+}
+
+void
+logfile_close(Logfile *self)
+{
+    if (self->file)
+    {
+	fclose(self->file);
+	self->file = NULL;
     }
 }
 

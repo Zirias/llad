@@ -19,4 +19,6 @@ void action_matchAndExecChain(Action *self,
 
 void action_free(Action *self);
 
+void Action_waitForPending(void);
+
 #endif

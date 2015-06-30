@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <pcre.h>
+#include <semaphore.h>
 
 #include "common.h"
 #include "daemon.h"
@@ -36,8 +37,9 @@ struct actionExecArgs
 
 static char *cmdpath = NULL;
 static int waitOutput = 120;
-static int pipeWait = 10;
+static int pipeWait = 2;
 static int termWait = 10;
+static int exitWait = 20;
 
 const struct poptOption action_opts[] = {
     {"cmd", 'p', POPT_ARG_STRING, &cmdpath, 0,
@@ -48,20 +50,29 @@ const struct poptOption action_opts[] = {
 	"action doesn't produce any output, defaults to 120.", "sec"},
     {"wpipe", 0, POPT_ARG_INT, &pipeWait, 0,
 	"Wait <sec> seconds for a command to terminate after closing the "
-	"output pipe before it is sent a TERM signal, defaults to 10.", "sec"},
+	"output pipe before it is sent a TERM signal, defaults to 2.", "sec"},
     {"wterm", 0, POPT_ARG_INT, &termWait, 0,
 	"Wait <sec> seconds for a command to terminate after sending it a "
 	"TERM signal before it is forcibly stopped using a KILL signal, "
 	"defaults to 10.", "sec"},
+    {"wexit", 0, POPT_ARG_INT, &exitWait, 0,
+	"Give actions <sec> seconds to complete after termination of llad was "
+	"requested before asking them to terminate, defaults to 20.", "sec"},
     POPT_TABLEEND
 };
 
-static int cleanupInstalled = 0;
+static int classInitialized = 0;
+
 static void
 cleanup(void)
 {
     free((void *)cmdpath);
 }
+
+static int numThreads = 0;
+static pthread_mutex_t numThreadsLock = PTHREAD_MUTEX_INITIALIZER;
+static sem_t threadsLock;
+static int forceExit = 0;
 
 Action *
 action_append(Action *self, Action *act)
@@ -109,10 +120,11 @@ action_appendNew(Action *self, const CfgAct *cfgAct)
     next->extra = extra;
     next->ovecsize = ovecsize;
 
-    if (!cleanupInstalled)
+    if (!classInitialized)
     {
-	cleanupInstalled = 1;
+	classInitialized = 1;
 	atexit(&cleanup);
+	sem_init(&threadsLock, 0, 1);
     }
 
     return action_append(self, next);
@@ -181,7 +193,7 @@ actionWaitEndLoop(pid_t pid, int *status, int maxwait)
 	    daemon_perror("waidpid()");
 	    return -1;
 	}
-	if (WIFEXITED(*status) || WIFSIGNALED(*status))
+	if (rc == (int)pid && (WIFEXITED(*status) || WIFSIGNALED(*status)))
 	{
 	    return (int)pid;
 	}
@@ -263,6 +275,8 @@ readLine(FILE* file, char *buf, size_t bufsize, int timeout)
 	tv.tv_usec = 0;
 	FD_ZERO(&rfds);
 	FD_SET(fd, &rfds);
+
+	if (forceExit) return -2;
 
 	rc = select(fd+1, &rfds, NULL, NULL, &tv);
 	if (rc < 0)
@@ -355,6 +369,9 @@ actionExec(void *argsPtr)
 
 actionExec_done:
     freeExecArgs(args);
+    pthread_mutex_lock(&numThreadsLock);
+    if (--numThreads == 0) sem_post(&threadsLock);
+    pthread_mutex_unlock(&numThreadsLock);
     return NULL;
 }
 
@@ -378,6 +395,13 @@ action_matchAndExecChain(Action *self, const char *logname, const char *line)
 	    struct actionExecArgs *args = createExecArgs(
 		    self, line, rc);
 
+	    pthread_mutex_lock(&numThreadsLock);
+	    if (numThreads == 0)
+	    {
+		sem_trywait(&threadsLock);
+	    }
+	    ++numThreads;
+
 	    if (pthread_attr_init(&attr) != 0
 		    || pthread_attr_setdetachstate(&attr,
 			PTHREAD_CREATE_DETACHED) != 0
@@ -387,7 +411,14 @@ action_matchAndExecChain(Action *self, const char *logname, const char *line)
 			"[%s]: Unable to create thread for action `%s', "
 			"giving up.", logname, cfgAct_name(self->cfgAct));
 		freeExecArgs(args);
+		--numThreads;
+		if (numThreads == 0)
+		{
+		    sem_post(&threadsLock);
+		}
 	    }
+
+	    pthread_mutex_unlock(&numThreadsLock);
 	}
 	self = self->next;
     }
@@ -408,5 +439,40 @@ action_free(Action *self)
 	pcre_free(last->re);
 	free(last);
     }
+}
+
+void
+Action_waitForPending(void)
+{
+    struct timespec ts;
+
+    if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
+    {
+	daemon_perror("clock_gettime()");
+	return;
+    }
+    ts.tv_sec += exitWait;
+
+    daemon_print("Waiting for pending actions to finish ...");
+    if (sem_timedwait(&threadsLock, &ts) < 0)
+    {
+	daemon_printf_level(LEVEL_WARNING,
+		"Pending actions after %d seconds, closing pipes.",
+		exitWait);
+	forceExit = 1;
+	if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
+	{
+	    daemon_perror("clock_gettime()");
+	    return;
+	}
+	ts.tv_sec += termWait + pipeWait + 2;
+
+	if (sem_timedwait(&threadsLock, &ts) < 0)
+	{
+	    daemon_print_level(LEVEL_ERR, "Still pending actions, giving up.");
+	    return;
+	}
+    }
+    daemon_print("All actions finished.");
 }
 

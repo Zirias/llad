@@ -279,6 +279,12 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
     else
     {
 	daemon_print_level(LEVEL_DEBUG, "Not forking into background.");
+
+	if (setpgid(0,0) < 0)
+	{
+	    daemon_print_level(LEVEL_WARNING,
+		    "Unable to start process group.");
+	}
     }
 
     rc = daemon_main(data);

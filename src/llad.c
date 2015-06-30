@@ -24,6 +24,7 @@ svcmain(void *data)
 {
     LogfileList_init();
     Watcher_watchlogs();
+    Action_waitForPending();
     LogfileList_done();
 
     daemon_print("Daemon stopped");

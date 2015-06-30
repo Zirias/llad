@@ -6,7 +6,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/select.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <pcre.h>
@@ -33,25 +35,26 @@ struct actionExecArgs
 };
 
 static char *cmdpath = NULL;
+static int waitOutput = 120;
+static int pipeWait = 10;
+static int termWait = 10;
 
 const struct poptOption action_opts[] = {
     {"cmd", 'p', POPT_ARG_STRING, &cmdpath, 0,
 	"Look for commands in <path> instead of the default " LLADCOMMANDS,
 	"path"},
+    {"wait", 'w', POPT_ARG_INT, &waitOutput, 0,
+	"Wait for a maximum of <sec> seconds before closing the pipe when an "
+	"action doesn't produce any output, defaults to 120.", "sec"},
+    {"wpipe", 0, POPT_ARG_INT, &pipeWait, 0,
+	"Wait <sec> seconds for a command to terminate after closing the "
+	"output pipe before it is sent a TERM signal, defaults to 10.", "sec"},
+    {"wterm", 0, POPT_ARG_INT, &termWait, 0,
+	"Wait <sec> seconds for a command to terminate after sending it a "
+	"TERM signal before it is forcibly stopped using a KILL signal, "
+	"defaults to 10.", "sec"},
     POPT_TABLEEND
 };
-
-static int siginitialized = 0;
-static void
-initsig(void)
-{
-    struct sigaction handler;
-    memset(&handler, 0, sizeof(handler));
-    handler.sa_handler = SIG_IGN;
-    sigemptyset(&(handler.sa_mask));
-    sigaction(SIGCHLD, &handler, NULL);
-    siginitialized = 1;
-}
 
 static int cleanupInstalled = 0;
 static void
@@ -164,12 +167,126 @@ freeExecArgs(struct actionExecArgs *args)
     free(args);
 }
 
-void *
+static int
+actionWaitEndLoop(pid_t pid, int *status, int maxwait)
+{
+    int rc;
+    int counter = maxwait;
+
+    while (counter--)
+    {
+	rc = waitpid(pid, status, WNOHANG);
+	if (rc < 0)
+	{
+	    daemon_perror("waidpid()");
+	    return -1;
+	}
+	if (WIFEXITED(*status) || WIFSIGNALED(*status))
+	{
+	    return (int)pid;
+	}
+	sleep(1);
+    }
+    return 0;
+}
+
+static void
+actionWaitEnd(struct actionExecArgs *args, pid_t pid)
+{
+    int rc;
+    int status;
+    int retcode;
+
+    rc = actionWaitEndLoop(pid, &status, pipeWait);
+    if (rc < 0) return;
+    if (!rc)
+    {
+	daemon_printf_level(LEVEL_WARNING,
+		"[%s] %s still running, sending SIGTERM to %d...",
+		args->actname, args->cmdname, pid);
+	kill(pid, SIGTERM);
+	rc = actionWaitEndLoop(pid, &status, termWait);
+	if (rc < 0) return;
+    }
+    if (!rc)
+    {
+	daemon_printf_level(LEVEL_WARNING,
+		"[%s] %s still running, sending SIGKILL to %d...",
+		args->actname, args->cmdname, pid);
+	kill(pid, SIGKILL);
+	if (waitpid(pid, &status, 0) < 0) return;
+    }
+
+    if (WIFEXITED(status))
+    {
+	retcode = WEXITSTATUS(status);
+	if (retcode)
+	{
+	    daemon_printf_level(LEVEL_WARNING,
+		    "[%s] %s (%d) failed with exit code %d.",
+		    args->actname, args->cmdname, pid, retcode);
+	}
+	else
+	{
+	    daemon_printf("[%s] %s (%d) completed successfully.",
+		    args->actname, args->cmdname, pid);
+	}
+    }
+    else if (WIFSIGNALED(status))
+    {
+	retcode = WTERMSIG(status);
+	daemon_printf_level(LEVEL_WARNING,
+		"[%s] %s (%d) was terminated by signal %s.",
+		args->actname, args->cmdname, pid, strsignal(retcode));
+    }
+}
+
+static int
+readLine(FILE* file, char *buf, size_t bufsize, int timeout)
+{
+    int counter = timeout;
+    sigset_t set, oldset;
+    struct timeval tv;
+    fd_set rfds;
+    int fd;
+    int rc;
+
+    fd = fileno(file);
+    if (fd < 0) return -1;
+
+    sigfillset(&set);
+    pthread_sigmask(SIG_SETMASK, &set, &oldset);
+
+    while (counter--)
+    {
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	FD_ZERO(&rfds);
+	FD_SET(fd, &rfds);
+
+	rc = select(fd+1, &rfds, NULL, NULL, &tv);
+	if (rc < 0)
+	{
+	    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+	    return -1;
+	}
+	if (rc)
+	{
+	    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+	    if (!fgets(buf, bufsize, file)) return -1;
+	    return 1;
+	}
+    }
+    return 0;
+}
+
+static void *
 actionExec(void *argsPtr)
 {
     int fds[2];
     int devnull;
     int len;
+    int rc;
     pid_t pid;
     char buf[4096];
     FILE *output;
@@ -196,10 +313,11 @@ actionExec(void *argsPtr)
     {
 	close(fds[1]);
 	output = fdopen(fds[0], "r");
+	setvbuf(output, NULL, _IONBF, 0);
 
 	if (output)
 	{
-	    while (fgets(buf, 4096, output))
+	    while ((rc = readLine(output, buf, 4096, waitOutput)) > 0)
 	    {
 		len = strlen(buf);
 		if (buf[len-1] == '\n') buf[len-1] = '\0';
@@ -207,12 +325,20 @@ actionExec(void *argsPtr)
 		daemon_printf("[%s] [%s:%d] %s",
 			args->actname, args->cmdname, pid, buf);
 	    }
+	    if (!rc)
+	    {
+		daemon_printf_level(LEVEL_WARNING,
+			"[%s] %s (%d) created no output for %d seconds, "
+			"closing pipe.",
+			args->actname, args->cmdname, pid, waitOutput);
+	    }
 	    fclose(output);
 	}
 	else
 	{
 	    close(fds[0]);
 	}
+	actionWaitEnd(args, pid);
     }
     else
     {
@@ -251,8 +377,6 @@ action_matchAndExecChain(Action *self, const char *logname, const char *line)
 
 	    struct actionExecArgs *args = createExecArgs(
 		    self, line, rc);
-
-	    if (!siginitialized) initsig();
 
 	    if (pthread_attr_init(&attr) != 0
 		    || pthread_attr_setdetachstate(&attr,

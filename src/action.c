@@ -327,6 +327,8 @@ actionExec(void *argsPtr)
     if (pid < 0)
     {
 	daemon_perror("fork()");
+	close(fds[0]);
+	close(fds[1]);
 	goto actionExec_done;
     }
 

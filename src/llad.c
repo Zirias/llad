@@ -14,6 +14,7 @@
 static const struct poptOption opts[] = {
     ACTION_OPTS
     CONFIG_OPTS
+    LOGFILE_OPTS
     DAEMON_OPTS
     POPT_AUTOHELP
     POPT_TABLEEND

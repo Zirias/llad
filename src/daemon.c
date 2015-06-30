@@ -14,7 +14,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 
-static const char *daemon_name = NULL;
+static const char *daemonName = NULL;
 static int nodetach = 0;
 static const char *pidfile = NULL;
 static int loglevel = LEVEL_NOTICE;
@@ -75,7 +75,7 @@ static void
 loginit(void)
 {
     logfacility = LOG_DAEMON;
-    openlog(daemon_name, LOG_CONS | LOG_NOWAIT | LOG_PID, logfacility);
+    openlog(daemonName, LOG_CONS | LOG_NOWAIT | LOG_PID, logfacility);
 }
 
 void
@@ -163,7 +163,7 @@ daemon_init(const char *name)
 	exit(EXIT_FAILURE);
     }
 
-    daemon_name = name;
+    daemonName = name;
     snprintf(pidfileHelp, 1024, PID_HLP_PATTERN, name);
 }
 
@@ -177,7 +177,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
     FILE *pf = NULL;
     int rc;
 
-    if (!daemon_name)
+    if (!daemonName)
     {
 	daemon_print_level(LEVEL_ERR, "Can't daemonize, daemon.c was not "
 		"initialized! Call daemon_init() before daemon_daemonize()!");
@@ -186,7 +186,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 
     if (!pidfile)
     {
-	snprintf(pfnbuf, 1024, PIDFILE_DEFAULT, daemon_name);
+	snprintf(pfnbuf, 1024, PIDFILE_DEFAULT, daemonName);
 	pfn = pfnbuf;
     }
     else if (strlen(pidfile) > 0)
@@ -218,7 +218,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 		{
 		    daemon_printf_level(LEVEL_ERR,
 			    "%s seems to be running, check `%s'.",
-			    daemon_name, pfn);
+			    daemonName, pfn);
 		    exit(EXIT_FAILURE);
 		}
 	    }
@@ -307,4 +307,9 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
     return rc;
 }
 
+const char *
+daemon_name(void)
+{
+    return daemonName;
+}
 

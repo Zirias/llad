@@ -5,7 +5,7 @@
 
 typedef int (*daemon_loop)(void *data);
 
-const struct poptOption daemon_opts[];
+extern const struct poptOption daemon_opts[];
 #define DAEMON_OPTS {NULL, '\0', POPT_ARG_INCLUDE_TABLE, (struct poptOption *)daemon_opts, 0, "Daemon options:", NULL},
 
 enum daemon_levels
@@ -29,6 +29,7 @@ void daemon_printf(const char *message_fmt, ...)
 void daemon_printf_level(int level, const char *message_fmt, ...)
     __attribute__((format(printf, 2, 3)));
 void daemon_perror(const char *message);
+const char *daemon_name(void);
 
 #endif
 

@@ -1,6 +1,11 @@
 #ifndef LLAD_LOGFILE_H
 #define LLAD_LOGFILE_H
 
+#include <popt.h>
+
+extern const struct poptOption logfile_opts[];
+#define LOGFILE_OPTS {NULL, '\0', POPT_ARG_INCLUDE_TABLE, (struct poptOption *)logfile_opts, 0, "Logfile options:", NULL},
+
 struct logfile;
 typedef struct logfile Logfile;
 

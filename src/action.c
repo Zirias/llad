@@ -276,7 +276,11 @@ readLine(FILE* file, char *buf, size_t bufsize, int timeout)
 	FD_ZERO(&rfds);
 	FD_SET(fd, &rfds);
 
-	if (forceExit) return -2;
+	if (forceExit)
+	{
+	    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+	    return -2;
+	}
 
 	rc = select(fd+1, &rfds, NULL, NULL, &tv);
 	if (rc < 0)
@@ -291,6 +295,7 @@ readLine(FILE* file, char *buf, size_t bufsize, int timeout)
 	    return 1;
 	}
     }
+    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
     return 0;
 }
 

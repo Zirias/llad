@@ -262,6 +262,7 @@ readLine(FILE* file, char *buf, size_t bufsize, int timeout)
     fd_set rfds;
     int fd;
     int rc;
+    int rcout = 0;
 
     fd = fileno(file);
     if (fd < 0) return -1;
@@ -278,25 +279,25 @@ readLine(FILE* file, char *buf, size_t bufsize, int timeout)
 
 	if (forceExit)
 	{
-	    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
-	    return -2;
+	    rcout = -2;
+	    break;
 	}
 
 	rc = select(fd+1, &rfds, NULL, NULL, &tv);
 	if (rc < 0)
 	{
-	    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
-	    return -1;
+	    rcout = -1;
+	    break;
 	}
 	if (rc)
 	{
-	    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
-	    if (!fgets(buf, bufsize, file)) return -1;
-	    return 1;
+	    if (fgets(buf, bufsize, file)) rcout = 1;
+	    else rcout = -1;
+	    break;
 	}
     }
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
-    return 0;
+    return rcout;
 }
 
 static void *

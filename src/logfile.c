@@ -257,7 +257,8 @@ logfile_dirName(const Logfile *self)
     return self->dirName;
 }
 
-void logfile_scan(Logfile *self, int reopen)
+void
+logfile_scan(Logfile *self, int reopen)
 {
     char buf[SCAN_BUFSIZE];
     struct stat st;
@@ -309,15 +310,17 @@ void logfile_scan(Logfile *self, int reopen)
 	    return;
 	}
     }
+
     while (fgets(buf, SCAN_BUFSIZE, self->file))
     {
 
 	daemon_printf_level(LEVEL_DEBUG,
 		"[logfile.c] [%s] got line: %s", self->name, buf);
 	action_matchAndExecChain(self->first, self->name, buf);
+	errno = 0;
     }
 
-    if (errno && errno != EWOULDBLOCK && errno != EAGAIN && errno != ENOENT)
+    if (errno && errno != EWOULDBLOCK && errno != EAGAIN)
     {
 	daemon_printf_level(LEVEL_WARNING,
 		"Can't read from `%s': %s", self->name, strerror(errno));

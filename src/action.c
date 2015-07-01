@@ -48,14 +48,14 @@ const struct poptOption action_opts[] = {
     {"wait", 'w', POPT_ARG_INT, &waitOutput, 0,
 	"Wait for a maximum of <sec> seconds before closing the pipe when an "
 	"action doesn't produce any output, defaults to 120.", "sec"},
-    {"wpipe", 0, POPT_ARG_INT, &pipeWait, 0,
+    {"wpipe", '\0', POPT_ARG_INT, &pipeWait, 0,
 	"Wait <sec> seconds for a command to terminate after closing the "
 	"output pipe before it is sent a TERM signal, defaults to 2.", "sec"},
-    {"wterm", 0, POPT_ARG_INT, &termWait, 0,
+    {"wterm", '\0', POPT_ARG_INT, &termWait, 0,
 	"Wait <sec> seconds for a command to terminate after sending it a "
 	"TERM signal before it is forcibly stopped using a KILL signal, "
 	"defaults to 10.", "sec"},
-    {"wexit", 0, POPT_ARG_INT, &exitWait, 0,
+    {"wexit", '\0', POPT_ARG_INT, &exitWait, 0,
 	"Give actions <sec> seconds to complete after termination of llad was "
 	"requested before asking them to terminate, defaults to 20.", "sec"},
     POPT_TABLEEND
@@ -139,11 +139,12 @@ createExecArgs(const Action *self, const char *line, int numArgs)
     const char *path;
     int i;
     size_t captureLength;
+    struct actionExecArgs *args;
 
     path = cmdpath;
     if (!path) path = LLADCOMMANDS;
 
-    struct actionExecArgs *args = lladAlloc(sizeof(struct actionExecArgs));
+    args = lladAlloc(sizeof(struct actionExecArgs));
     args->actname = cfgAct_name(self->cfgAct);
     args->cmdname = cfgAct_command(self->cfgAct);
     args->cmd = lladAlloc((numArgs + 2) * sizeof(char *));
@@ -255,7 +256,7 @@ actionWaitEnd(struct actionExecArgs *args, pid_t pid)
 }
 
 static int
-readLine(FILE* file, char *buf, size_t bufsize, int timeout)
+readLine(FILE* file, char *buf, int bufsize, int timeout)
 {
     int counter = timeout;
     sigset_t set, oldset;
@@ -397,6 +398,7 @@ action_matchAndExecChain(Action *self, const char *logname, const char *line)
     int rc;
     pthread_attr_t attr;
     pthread_t thread;
+    struct actionExecArgs *args;
 
     while (self)
     {
@@ -408,8 +410,7 @@ action_matchAndExecChain(Action *self, const char *logname, const char *line)
 		    logname, cfgAct_name(self->cfgAct),
 		    cfgAct_command(self->cfgAct));
 
-	    struct actionExecArgs *args = createExecArgs(
-		    self, line, rc);
+	    args = createExecArgs(self, line, rc);
 
 	    pthread_mutex_lock(&numThreadsLock);
 	    if (numThreads == 0)

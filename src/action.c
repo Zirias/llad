@@ -460,33 +460,36 @@ Action_waitForPending(void)
 {
     struct timespec ts;
 
-    if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
+    if (sem_trywait(&threadsLock) < 0)
     {
-	daemon_perror("clock_gettime()");
-	return;
-    }
-    ts.tv_sec += exitWait;
-
-    daemon_print("Waiting for pending actions to finish ...");
-    if (sem_timedwait(&threadsLock, &ts) < 0)
-    {
-	daemon_printf_level(LEVEL_WARNING,
-		"Pending actions after %d seconds, closing pipes.",
-		exitWait);
-	sem_post(&forceExit);
 	if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
 	{
 	    daemon_perror("clock_gettime()");
 	    return;
 	}
-	ts.tv_sec += termWait + pipeWait + 2;
+	ts.tv_sec += exitWait;
 
+	daemon_print("Waiting for pending actions to finish ...");
 	if (sem_timedwait(&threadsLock, &ts) < 0)
 	{
-	    daemon_print_level(LEVEL_ERR, "Still pending actions, giving up.");
-	    return;
+	    daemon_printf_level(LEVEL_WARNING,
+		    "Pending actions after %d seconds, closing pipes.",
+		    exitWait);
+	    sem_post(&forceExit);
+	    if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
+	    {
+		daemon_perror("clock_gettime()");
+		return;
+	    }
+	    ts.tv_sec += termWait + pipeWait + 2;
+
+	    if (sem_timedwait(&threadsLock, &ts) < 0)
+	    {
+		daemon_print_level(LEVEL_ERR, "Still pending actions, giving up.");
+		return;
+	    }
 	}
+	daemon_print("All actions finished.");
     }
-    daemon_print("All actions finished.");
 }
 

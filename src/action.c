@@ -214,7 +214,7 @@ actionWaitEnd(struct actionExecArgs *args, pid_t pid)
     if (rc < 0) return;
     if (!rc)
     {
-	daemon_printf_level(LEVEL_WARNING,
+	daemon_printf_level(LEVEL_NOTICE,
 		"[%s] %s still running, sending SIGTERM to %d...",
 		args->actname, args->cmdname, pid);
 	kill(pid, SIGTERM);
@@ -235,7 +235,7 @@ actionWaitEnd(struct actionExecArgs *args, pid_t pid)
 	retcode = WEXITSTATUS(status);
 	if (retcode)
 	{
-	    daemon_printf_level(LEVEL_WARNING,
+	    daemon_printf_level(LEVEL_NOTICE,
 		    "[%s] %s (%d) failed with exit code %d.",
 		    args->actname, args->cmdname, pid, retcode);
 	}
@@ -248,7 +248,7 @@ actionWaitEnd(struct actionExecArgs *args, pid_t pid)
     else if (WIFSIGNALED(status))
     {
 	retcode = WTERMSIG(status);
-	daemon_printf_level(LEVEL_WARNING,
+	daemon_printf_level(LEVEL_NOTICE,
 		"[%s] %s (%d) was terminated by signal %s.",
 		args->actname, args->cmdname, pid, strsignal(retcode));
     }
@@ -315,9 +315,11 @@ actionExec(void *argsPtr)
     sigset_t sigset;
     struct actionExecArgs *args = argsPtr;
 
+#ifdef DEBUG
     daemon_printf_level(LEVEL_DEBUG,
 	    "[action.c] Thread for action `%s' started.",
 	    args->actname);
+#endif
 
     if (pipe(fds) < 0)
     {
@@ -352,7 +354,7 @@ actionExec(void *argsPtr)
 	    }
 	    if (!rc)
 	    {
-		daemon_printf_level(LEVEL_WARNING,
+		daemon_printf_level(LEVEL_NOTICE,
 			"[%s] %s (%d) created no output for %d seconds, "
 			"closing pipe.",
 			args->actname, args->cmdname, pid, waitOutput);
@@ -472,7 +474,7 @@ Action_waitForPending(void)
 	daemon_print("Waiting for pending actions to finish ...");
 	if (sem_timedwait(&threadsLock, &ts) < 0)
 	{
-	    daemon_printf_level(LEVEL_WARNING,
+	    daemon_printf_level(LEVEL_NOTICE,
 		    "Pending actions after %d seconds, closing pipes.",
 		    exitWait);
 	    sem_post(&forceExit);

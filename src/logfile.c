@@ -340,15 +340,17 @@ logfile_scan(Logfile *self, int reopen)
     {
 	if (!noignore && strstr(buf, ignorepattern)) continue;
 
+#ifdef DEBUG
 	daemon_printf_level(LEVEL_DEBUG,
 		"[logfile.c] [%s] got line: %s", self->name, buf);
+#endif
 	action_matchAndExecChain(self->first, self->name, buf);
 	errno = 0;
     }
 
     if (errno && errno != EWOULDBLOCK && errno != EAGAIN)
     {
-	daemon_printf_level(LEVEL_WARNING,
+	daemon_printf_level(LEVEL_NOTICE,
 		"Can't read from `%s': %s", self->name, strerror(errno));
     }
 }

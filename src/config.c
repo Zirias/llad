@@ -6,7 +6,8 @@
 #include "daemon.h"
 #include "common.h"
 
-const char *configFile = NULL;
+static const char *configFile = NULL;
+static const char *cfgFile;
 
 const struct poptOption config_opts[] = {
     {"config", 'c', POPT_ARG_STRING, &configFile, 0,
@@ -152,8 +153,10 @@ parseWord(char **pos)
 	    else
 	    {
 		word = lladCloneString(st.buf);
+#ifdef DEBUG
 		daemon_printf_level(LEVEL_DEBUG,
 			"[config.c] parseWord(): found `%s'", word);
+#endif
 		memset(&st, 0, sizeof(struct state));
 		st.bufptr = st.buf;
 		return word;
@@ -171,7 +174,9 @@ parseWord(char **pos)
 	exit(EXIT_FAILURE);
     }
 
+#ifdef DEBUG
     daemon_print_level(LEVEL_DEBUG, "[config.c] parseWord(): incomplete");
+#endif
     return NULL;
 }
 
@@ -239,7 +244,7 @@ parseActions(CfgLog *log, char *line)
 	    case ST_START:
 		if ((st.name = parseWord(&ptr)))
 		{
-		    daemon_printf_level(LEVEL_INFO,
+		    daemon_printf_level(LEVEL_DEBUG,
 			    "[config.c] Found action: %s", st.name);
 		    st.step = ST_NAME;
 		}
@@ -281,7 +286,7 @@ parseActions(CfgLog *log, char *line)
 			nextAction->pattern = st.pattern;
 			nextAction->command = st.command;
 			nextAction->next = NULL;
-			daemon_printf_level(LEVEL_INFO,
+			daemon_printf_level(LEVEL_DEBUG,
 				"[config.c] pattern: `%s' command: `%s'",
 				st.pattern, st.command);
 		    }
@@ -289,8 +294,8 @@ parseActions(CfgLog *log, char *line)
 		    {
 			nextAction = st.currentAction;
 			daemon_printf_level(LEVEL_WARNING,
-				"[config.c] Ignoring incomplete action `%s'",
-				st.name);
+				"%s: Ignoring incomplete action `%s'",
+				cfgFile, st.name);
 			free(st.name);
 			free(st.pattern);
 			free(st.command);
@@ -319,8 +324,8 @@ parseActions(CfgLog *log, char *line)
 		    {
 			st.blockval = NULL;
 			daemon_printf_level(LEVEL_WARNING,
-				"[config.c] Unknown config value: %s",
-				st.blockname);
+				"%s: Unknown config value: %s",
+				cfgFile, st.blockname);
 		    }
 		    free(st.blockname);
 		}
@@ -366,7 +371,7 @@ loadConfigEntries(FILE *cfg)
 		if (*ptr2 == ']')
 		{
 		    *ptr2 = '\0';
-		    daemon_printf_level(LEVEL_INFO,
+		    daemon_printf_level(LEVEL_DEBUG,
 			    "[config.c] Found logfile section: %s", ptr);
 		    if (currentLog)
 		    {
@@ -426,7 +431,6 @@ void
 Config_init(void)
 {
     FILE *cfg;
-    const char *cfgFile;
 
     if (firstCfgLog) Config_done();
 

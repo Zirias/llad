@@ -48,6 +48,7 @@ static void Watcher_done(void);
 
 static int infd = -1;
 static sig_atomic_t running = 0;
+static int lastSigNum = 0;
 static WatcherDir *firstDir = NULL;
 static WatcherFile *firstFile = NULL;
 static char evbuf[EVENT_BUFSIZE]
@@ -76,7 +77,7 @@ registerFile(Logfile *log)
     }
     else
     {
-	daemon_printf_level(LEVEL_WARNING,
+	daemon_printf_level(LEVEL_NOTICE,
 		"Waiting to watch non-accessible or non-existent file `%s'",
 		logfile_name(log));
     }
@@ -135,16 +136,8 @@ registerDir(Logfile *log)
 static void
 sighdl(int signum)
 {
-    if (signum == SIGTERM || signum == SIGINT)
-    {
-	daemon_printf("Received signal %s: stopping daemon.",
-		strsignal(signum));
-	running = 0;
-    }
-    else
-    {
-	daemon_printf("Ignoring signal %s", strsignal(signum));
-    }
+    lastSigNum = signum;
+    running = 0;
 }
 
 static void
@@ -306,7 +299,7 @@ fileDeleted(int inwd, const char *name)
 		if (wf)
 		{
 		    inotify_rm_watch(infd, wf->inwd);
-		    daemon_printf_level(LEVEL_WARNING,
+		    daemon_printf_level(LEVEL_NOTICE,
 			    "File `%s' disappeared, waiting to watch it again.",
 			    logfile_name(wf->logfile));
 		    wf->inwd = -1;
@@ -351,7 +344,7 @@ fileCreated(int inwd, const char *name)
 		    }
 		    else
 		    {
-			daemon_printf_level(LEVEL_WARNING,
+			daemon_printf_level(LEVEL_NOTICE,
 				"Waiting to watch non-accessible newly "
 				"created file `%s'",
 				logfile_name(wf->logfile));
@@ -369,6 +362,7 @@ watchloop(void)
 {
     int chunk, pos;
     const struct inotify_event *ev;
+    const char *sig;
 
     while (running)
     {
@@ -396,9 +390,28 @@ watchloop(void)
 		pos += sizeof(struct inotify_event) + ev->len;
 	    }
 	}
-	daemon_printf_level(LEVEL_DEBUG,
-		"inotify read() failed: %s", strerror(errno));
-	if (errno != EAGAIN && errno != EINTR) break;
+	if (errno != EAGAIN && errno != EINTR)
+	{
+	    daemon_perror("inotify read()");
+	    break;
+	}
+	else
+	{
+	    if (lastSigNum)
+	    {
+		sig = strsignal(lastSigNum);
+		lastSigNum = 0;
+		if (running)
+		{
+		    daemon_printf("Ignoring signal %s", sig);
+		}
+		else
+		{
+		    daemon_printf_level(LEVEL_NOTICE,
+			    "Received signal %s: stopping daemon.", sig);
+		}
+	    }
+	}
     }
 }
 

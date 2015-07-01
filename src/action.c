@@ -72,7 +72,7 @@ cleanup(void)
 static int numThreads = 0;
 static pthread_mutex_t numThreadsLock = PTHREAD_MUTEX_INITIALIZER;
 static sem_t threadsLock;
-static int forceExit = 0;
+static sem_t forceExit;
 
 Action *
 action_append(Action *self, Action *act)
@@ -125,6 +125,7 @@ action_appendNew(Action *self, const CfgAct *cfgAct)
 	classInitialized = 1;
 	atexit(&cleanup);
 	sem_init(&threadsLock, 0, 1);
+	sem_init(&forceExit, 0, 0);
     }
 
     return action_append(self, next);
@@ -277,8 +278,9 @@ readLine(FILE* file, char *buf, size_t bufsize, int timeout)
 	FD_ZERO(&rfds);
 	FD_SET(fd, &rfds);
 
-	if (forceExit)
+	if (!sem_trywait(&forceExit))
 	{
+	    sem_post(&forceExit);
 	    rcout = -2;
 	    break;
 	}
@@ -471,7 +473,7 @@ Action_waitForPending(void)
 	daemon_printf_level(LEVEL_WARNING,
 		"Pending actions after %d seconds, closing pipes.",
 		exitWait);
-	forceExit = 1;
+	sem_post(&forceExit);
 	if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
 	{
 	    daemon_perror("clock_gettime()");

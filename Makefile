@@ -24,7 +24,8 @@ ifdef DEBUG
 CFLAGS += -DDEBUG -g3 -O0
 VTAGS += [debug]
 else
-CFLAGS += -g0 -O3
+CFLAGS += -g0 -O3 -flto
+LDFLAGS += -O3 -flto
 VTAGS += [release]
 endif
 
@@ -73,7 +74,7 @@ llad_LIBS := -pthread -lpopt -lpcre
 
 sbin/llad: $(llad_OBJS) | sbin
 	$(VCCLD)
-	$(VR)$(CC) -o $@ $^ $(llad_LIBS)
+	$(VR)$(CC) $(LDFLAGS) -o $@ $^ $(llad_LIBS)
 
 clean:
 	rm -fr obj

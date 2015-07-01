@@ -17,31 +17,43 @@
 static const char *daemonName = NULL;
 static int nodetach = 0;
 static const char *pidfile = NULL;
-static int loglevel = LEVEL_NOTICE;
+static int loglevel = LOG_INFO;
 static int logfacility = 0;
 
 #define PIDFILE_DEFAULT RUNSTATEDIR "/%s.pid"
 
-static const int loglvl[] = {
-    LOG_DEBUG,
-    LOG_INFO,
-    LOG_NOTICE,
-    LOG_WARNING,
-    LOG_ERR,
-    LOG_CRIT,
-    LOG_ALERT,
-    LOG_EMERG
+struct level
+{
+    const int val;
 };
 
+static const LEVEL LVDEBUG = { LOG_DEBUG };
+static const LEVEL LVINFO = { LOG_INFO };
+static const LEVEL LVNOTICE = { LOG_NOTICE };
+static const LEVEL LVWARNING = { LOG_WARNING };
+static const LEVEL LVERR = { LOG_ERR };
+static const LEVEL LVCRIT = { LOG_CRIT };
+static const LEVEL LVALERT = { LOG_ALERT };
+static const LEVEL LVEMERG = { LOG_EMERG };
+
+const LEVEL * const LEVEL_DEBUG = &LVDEBUG;
+const LEVEL * const LEVEL_INFO = &LVINFO;
+const LEVEL * const LEVEL_NOTICE = &LVNOTICE;
+const LEVEL * const LEVEL_WARNING = &LVWARNING;
+const LEVEL * const LEVEL_ERR = &LVERR;
+const LEVEL * const LEVEL_CRIT = &LVCRIT;
+const LEVEL * const LEVEL_ALERT = &LVALERT;
+const LEVEL * const LEVEL_EMERG = &LVEMERG;
+
 static const char * const strlvl[] = {
-    "DBG",
-    "INF",
-    "NOT",
-    "WRN",
-    "ERR",
-    "CRT",
+    "EMG",
     "ALT",
-    "EMG"
+    "CRT",
+    "ERR",
+    "WRN",
+    "NOT",
+    "INF",
+    "DBG"
 };
 
 static char pidfileHelp[1024];
@@ -56,11 +68,11 @@ const struct poptOption daemon_opts[] = {
     {"pidfile", '\0', POPT_ARG_STRING, &pidfile, 0, pidfileHelp,
 	"path"},
     {"loglevel", 'l', POPT_ARG_INT, &loglevel, 0,
-	"Control the amout of information printed and logged. The lower the "
+	"Control the amout of information printed and logged. The higher the "
 	"number, the more information is given. The valid range for <level> "
-	"reaches from 0 (print/log everyting including debugging info) to 7 "
-	"(only print/log emergencies). The default is 2 (notices, warnings "
-	"and everything more important).", "level"},
+	"reaches from 0 (only print/log emergencies) to 7 (print/log "
+	"everyting including debugging info) to 7 . The default is 6 "
+	"(infos, notices, warnings and everything more important). ", "level"},
     POPT_TABLEEND
 };
 
@@ -81,7 +93,7 @@ loginit(void)
 void
 daemon_perror(const char *message)
 {
-    if (loglevel > LEVEL_ERR) return;
+    if (loglevel < LOG_ERR) return;
     if (logfacility)
     {
 	syslog(logfacility | LOG_ERR, "%s: %s", message, strerror(errno));
@@ -93,38 +105,38 @@ daemon_perror(const char *message)
 }
 
 void
-daemon_print_level(int level, const char *message)
+daemon_print_level(const LEVEL *level, const char *message)
 {
-    if (level < loglevel) return;
+    if (level->val > loglevel) return;
     if (logfacility)
     {
-	syslog(logfacility | loglvl[level], "%s", message);
+	syslog(logfacility | level->val, "%s", message);
     }
     else
     {
-	fprintf(stderr, "[%s] %s\n", strlvl[level], message);
+	fprintf(stderr, "[%s] %s\n", strlvl[level->val], message);
     }
 }
 
 
 static void
-daemon_vprintf_level(int level, const char *message_fmt, va_list ap)
+daemon_vprintf_level(const LEVEL *level, const char *message_fmt, va_list ap)
 {
-    if (level < loglevel) return;
+    if (level->val > loglevel) return;
     if (logfacility)
     {
-	vsyslog(logfacility | loglvl[level], message_fmt, ap);
+	vsyslog(logfacility | level->val, message_fmt, ap);
     }
     else
     {
-	fprintf(stderr, "[%s] ", strlvl[level]);
+	fprintf(stderr, "[%s] ", strlvl[level->val]);
 	vfprintf(stderr, message_fmt, ap);
 	fputs("\n", stderr);
     }
 }
 
 void
-daemon_printf_level(int level, const char *message_fmt, ...)
+daemon_printf_level(const LEVEL *level, const char *message_fmt, ...)
 {
     va_list ap;
     va_start(ap, message_fmt);
@@ -135,7 +147,7 @@ daemon_printf_level(int level, const char *message_fmt, ...)
 void
 daemon_print(const char *message)
 {
-    daemon_print_level(LEVEL_NOTICE, message);
+    daemon_print_level(LEVEL_INFO, message);
 }
 
 void
@@ -143,7 +155,7 @@ daemon_printf(const char *message_fmt, ...)
 {
     va_list ap;
     va_start(ap, message_fmt);
-    daemon_vprintf_level(LEVEL_NOTICE, message_fmt, ap);
+    daemon_vprintf_level(LEVEL_INFO, message_fmt, ap);
     va_end(ap);
 }
 

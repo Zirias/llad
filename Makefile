@@ -1,6 +1,7 @@
 CC := gcc
 
-CFLAGS += -std=c99 -Wall -Wextra -Wformat=2 -Winit-self \
+CFLAGS += -std=c99 -Wall -Wextra -Wformat=2 \
+	  -Wno-unknown-warning -Wno-unknown-warning-option -Winit-self \
 	  -Wdeclaration-after-statement -Wshadow -Wbad-function-cast \
 	  -Wwrite-strings -Wconversion -Wlogical-op -pedantic
 
@@ -31,8 +32,8 @@ CFLAGS += -Werror -pedantic-errors -Wsuggest-attribute=pure \
 	  -Wno-error=padded -DDEBUG -g3 -O0
 VTAGS += [debug]
 else
-CFLAGS += -g0 -O3 -flto
-LDFLAGS += -O3 -flto
+CFLAGS += -flto -O3 -g0
+LDFLAGS += -flto -O3
 VTAGS += [release]
 endif
 

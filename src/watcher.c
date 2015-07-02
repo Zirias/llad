@@ -25,9 +25,9 @@ typedef struct watcherDirEntry WatcherDirEntry;
 
 struct watcherFile
 {
-    int inwd;
     Logfile *logfile;
     WatcherFile *next;
+    int inwd;
 };
 
 struct watcherDirEntry
@@ -38,9 +38,9 @@ struct watcherDirEntry
 
 struct watcherDir
 {
-    int inwd;
     WatcherDirEntry entry;
     WatcherDir *next;
+    int inwd;
 };
 
 static int Watcher_init(void);
@@ -366,7 +366,8 @@ watchloop(void)
 
     while (running)
     {
-	while ((chunk = read(infd, &evbuf, EVENT_BUFSIZE)) > 0)
+	/* EVENT_BUFSIZE should be smaller than MAX int value */
+	while ((chunk = (int) read(infd, &evbuf, EVENT_BUFSIZE)) > 0)
 	{
 	    pos = 0;
 	    while (pos < chunk)
@@ -387,7 +388,7 @@ watchloop(void)
 		{
 		    fileModified(ev->wd);
 		}
-		pos += sizeof(struct inotify_event) + ev->len;
+		pos += (int) sizeof(struct inotify_event) + (int) ev->len;
 	    }
 	}
 	if (errno != EAGAIN && errno != EINTR)

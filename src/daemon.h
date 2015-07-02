@@ -1,6 +1,7 @@
 #ifndef LLAD_DAEMON_H
 #define LLAD_DAEMON_H
 
+#include <stdarg.h>
 #include <popt.h>
 
 typedef int (*daemon_loop)(void *data);
@@ -28,6 +29,8 @@ void daemon_printf(const char *message_fmt, ...)
     __attribute__((format(printf, 1, 2)));
 void daemon_printf_level(const LEVEL *level, const char *message_fmt, ...)
     __attribute__((format(printf, 2, 3)));
+void daemon_vprintf_level(const LEVEL *level, const char *message_fmt,
+	va_list ap);
 void daemon_perror(const char *message);
 const char *daemon_name(void);
 

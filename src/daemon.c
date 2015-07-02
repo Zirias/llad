@@ -7,7 +7,6 @@
 #include <string.h>
 #include <errno.h>
 #include <syslog.h>
-#include <stdarg.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -119,7 +118,7 @@ daemon_print_level(const LEVEL *level, const char *message)
 }
 
 
-static void
+void
 daemon_vprintf_level(const LEVEL *level, const char *message_fmt, va_list ap)
 {
     if (level->val > loglevel) return;

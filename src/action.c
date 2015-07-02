@@ -24,7 +24,7 @@ struct action
     Action *next;
     pcre *re;
     pcre_extra *extra;
-    int ovecsize;
+    unsigned int ovecsize;
     int ovec[];
 };
 
@@ -95,7 +95,7 @@ action_appendNew(Action *self, const CfgAct *cfgAct)
     Action *next;
     pcre *re;
     pcre_extra *extra;
-    int ovecsize;
+    unsigned int ovecsize;
     const char *error;
     int erroffset;
 
@@ -147,7 +147,7 @@ createExecArgs(const Action *self, const char *line, int numArgs)
     args = lladAlloc(sizeof(struct actionExecArgs));
     args->actname = cfgAct_name(self->cfgAct);
     args->cmdname = cfgAct_command(self->cfgAct);
-    args->cmd = lladAlloc((numArgs + 2) * sizeof(char *));
+    args->cmd = lladAlloc((size_t)(numArgs + 2) * sizeof(char *));
 
     cmdName = lladAlloc(strlen(path) + strlen(args->cmdname) + 2);
     strcpy(cmdName, path);
@@ -157,7 +157,8 @@ createExecArgs(const Action *self, const char *line, int numArgs)
 
     for (i = 0; i < numArgs; ++i)
     {
-	captureLength = self->ovec[2*i+1] - self->ovec[2*i];
+	/* safe conversion if we trust libpcre */
+	captureLength = (size_t)(self->ovec[2*i+1] - self->ovec[2*i]);
 	arg = lladAlloc(captureLength + 1);
 	arg[captureLength] = '\0';
 	strncpy(arg, line + self->ovec[2*i], captureLength);
@@ -347,7 +348,7 @@ actionExec(void *argsPtr)
 	{
 	    while ((rc = readLine(output, buf, 4096, waitOutput)) > 0)
 	    {
-		len = strlen(buf);
+		len = (int)strlen(buf);
 		if (buf[len-1] == '\n') buf[len-1] = '\0';
 		if (buf[len-2] == '\r') buf[len-2] = '\0';
 		daemon_printf("[%s] [%s:%d] %s",
@@ -402,8 +403,8 @@ action_matchAndExecChain(Action *self, const char *logname, const char *line)
 
     while (self)
     {
-	rc = pcre_exec(self->re, self->extra, line, strlen(line), 0, 0,
-		self->ovec, self->ovecsize);
+	rc = pcre_exec(self->re, self->extra, line, (int)strlen(line), 0, 0,
+		self->ovec, (int)self->ovecsize);
 	if (rc > 0)
 	{
 	    daemon_printf("[%s]: Action `%s' matched, executing `%s'.",

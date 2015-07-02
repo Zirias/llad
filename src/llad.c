@@ -23,6 +23,8 @@ static const struct poptOption opts[] = {
 static int
 svcmain(void *data)
 {
+    (void)(data); /* unused */
+
     LogfileList_init();
 
     if (Watcher_watchlogs())

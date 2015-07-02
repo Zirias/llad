@@ -2,7 +2,7 @@ CC := gcc
 
 CFLAGS += -std=c99 -Wall -Wextra -Wformat=2 -Winit-self \
 	  -Wdeclaration-after-statement -Wshadow -Wbad-function-cast \
-	  -Wwrite-strings -Wconversion -Wlogical-op -pedantic -std=c99
+	  -Wwrite-strings -Wconversion -Wlogical-op -pedantic
 
 CCDEP := $(CC) -MM
 

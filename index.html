@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-dark.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
+
+    <title>Llad by Zirias</title>
+  </head>
+
+  <body>
+
+    <header>
+      <div class="container">
+        <h1>Llad</h1>
+        <h2>Linux Log Action Daemon (watch logfiles and take actions on patterns)</h2>
+
+        <section id="downloads">
+          <a href="https://github.com/Zirias/llad/zipball/master" class="btn">Download as .zip</a>
+          <a href="https://github.com/Zirias/llad/tarball/master" class="btn">Download as .tar.gz</a>
+          <a href="https://github.com/Zirias/llad" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
+        </section>
+      </div>
+    </header>
+
+    <div class="container">
+      <section id="main_content">
+        <p>The Linux Log Action Daemon is a little tool allowing to use log files as a
+source of events. Based on a config file, llad watches several logfiles and
+executes some custom actions as soon as a pattern matches a new log line.</p>
+
+<p>The patterns are given as perl compatible regular expressions. The matching
+part of a log line, as well as any matchings for "capture groups", are fed to
+the executed command as commandline arguments. Output of the command is
+captured and logged to the "daemon" log facility.</p>
+
+<p>A major design goal of llad is robustness -- all executed actions are monitored
+and cancelled, if they exceed some configurable timeouts.</p>
+
+<p>All llad code is released under the terms of the 2-clause BSD license.</p>
+
+<h3>
+<a id="current-state" class="anchor" href="#current-state" aria-hidden="true"><span class="octicon octicon-link"></span></a>Current state</h3>
+
+<p>llad is ready for production use according to my own tests, but not yet tested
+in the field. Therefore, there's no "release" yet. The files in debian/ will
+create a Debian package with version number 0.9 -- the first official release
+will be 1.0.</p>
+
+<h2>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<h3>
+<a id="prerequisites" class="anchor" href="#prerequisites" aria-hidden="true"><span class="octicon octicon-link"></span></a>Prerequisites</h3>
+
+<p>In order to build llad, you need the following libraries:</p>
+
+<ul>
+<li><p>libpopt</p></li>
+<li><p>libpcre</p></li>
+</ul>
+
+<p>For running it, you need a Linux kernel (&gt;= 2.6.36) that provides the inotify
+API.</p>
+
+<h3>
+<a id="quick-installation" class="anchor" href="#quick-installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Quick installation</h3>
+
+<p>Use the following commands:</p>
+
+<pre><code>make
+make install
+</code></pre>
+
+<h3>
+<a id="build-configuration" class="anchor" href="#build-configuration" aria-hidden="true"><span class="octicon octicon-link"></span></a>Build configuration</h3>
+
+<p>The Makefile (GNU make) understands the following options for "make":</p>
+
+<ul>
+<li><p>DEBUG=1: create a build with debugging info</p></li>
+<li><p>prefix={path} (default: /usr/local) the prefix for the running installation</p></li>
+<li><p>sysconfdir={path} (default: {prefix}/etc) the location of configuration
+files. llad creates its own subdirectory "llad" and commands for executing
+are in {sysconfdir}/llad/command by default.</p></li>
+<li><p>localstatedir={path} (default: {prefix}/var) -- this is used for the default
+location of llad's pidfile ({localstatedir}/run/llad.pid).</p></li>
+</ul>
+
+<h3>
+<a id="install-configuration" class="anchor" href="#install-configuration" aria-hidden="true"><span class="octicon octicon-link"></span></a>Install configuration</h3>
+
+<p>"make install" should receive the SAME options given to "make". Furthermore,
+the option "DESTDIR" is supported. This is mainly interesting for package
+builders -- DESTDIR will be prepended to any path while installing.</p>
+
+<h2>
+<a id="further-documentation" class="anchor" href="#further-documentation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Further documentation</h2>
+
+<p>See the files in "examples".</p>
+
+<h2>
+<a id="why-the-idea" class="anchor" href="#why-the-idea" aria-hidden="true"><span class="octicon octicon-link"></span></a>Why? The idea</h2>
+
+<p>I have a Linux based router/firewall and once in a while (every few months)
+the NIC driver goes crazy. Networking has to be restarted manually to get it
+back to work. This is annoying, need a serial terminal for this, so I came up
+with a quick and dirty daemon created in perl that just watches
+/var/log/messages for NETDEV WATCHDOG entries and restarts the networking
+automatically.</p>
+
+<p>Well, a nice hack, but I wanted a more solid solution, so why not create a
+daemon for watching any logfile you want (or, multiple logfiles at a time),
+looking for user-defined patterns and taking actions given in a configuration
+file. This is what llad does.</p>
+      </section>
+    </div>
+
+    
+  </body>
+</html>

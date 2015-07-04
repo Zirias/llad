@@ -26,23 +26,23 @@ struct level
     const int val;
 };
 
-static const LEVEL LVDEBUG = { LOG_DEBUG };
-static const LEVEL LVINFO = { LOG_INFO };
-static const LEVEL LVNOTICE = { LOG_NOTICE };
-static const LEVEL LVWARNING = { LOG_WARNING };
-static const LEVEL LVERR = { LOG_ERR };
-static const LEVEL LVCRIT = { LOG_CRIT };
-static const LEVEL LVALERT = { LOG_ALERT };
-static const LEVEL LVEMERG = { LOG_EMERG };
+static const Level LVDEBUG = { LOG_DEBUG };
+static const Level LVINFO = { LOG_INFO };
+static const Level LVNOTICE = { LOG_NOTICE };
+static const Level LVWARNING = { LOG_WARNING };
+static const Level LVERR = { LOG_ERR };
+static const Level LVCRIT = { LOG_CRIT };
+static const Level LVALERT = { LOG_ALERT };
+static const Level LVEMERG = { LOG_EMERG };
 
-const LEVEL * const LEVEL_DEBUG = &LVDEBUG;
-const LEVEL * const LEVEL_INFO = &LVINFO;
-const LEVEL * const LEVEL_NOTICE = &LVNOTICE;
-const LEVEL * const LEVEL_WARNING = &LVWARNING;
-const LEVEL * const LEVEL_ERR = &LVERR;
-const LEVEL * const LEVEL_CRIT = &LVCRIT;
-const LEVEL * const LEVEL_ALERT = &LVALERT;
-const LEVEL * const LEVEL_EMERG = &LVEMERG;
+const Level * const LEVEL_DEBUG = &LVDEBUG;
+const Level * const LEVEL_INFO = &LVINFO;
+const Level * const LEVEL_NOTICE = &LVNOTICE;
+const Level * const LEVEL_WARNING = &LVWARNING;
+const Level * const LEVEL_ERR = &LVERR;
+const Level * const LEVEL_CRIT = &LVCRIT;
+const Level * const LEVEL_ALERT = &LVALERT;
+const Level * const LEVEL_EMERG = &LVEMERG;
 
 static const char * const strlvl[] = {
     "EMG",
@@ -89,6 +89,20 @@ loginit(void)
     openlog(daemonName, LOG_CONS | LOG_NOWAIT | LOG_PID, logfacility);
 }
 
+const char *
+level_str(const Level *l)
+{
+    if (!l) l = LEVEL_INFO;
+    return strlvl[l->val];
+}
+
+int
+level_int(const Level *l)
+{
+    if (!l) l = LEVEL_INFO;
+    return l->val;
+}
+
 void
 daemon_perror(const char *message)
 {
@@ -104,38 +118,38 @@ daemon_perror(const char *message)
 }
 
 void
-daemon_print_level(const LEVEL *level, const char *message)
+daemon_print_level(const Level *level, const char *message)
 {
-    if (level->val > loglevel) return;
+    if (level_int(level) > loglevel) return;
     if (logfacility)
     {
-	syslog(logfacility | level->val, "%s", message);
+	syslog(logfacility | level_int(level), "%s", message);
     }
     else
     {
-	fprintf(stderr, "[%s] %s\n", strlvl[level->val], message);
+	fprintf(stderr, "[%s] %s\n", level_str(level), message);
     }
 }
 
 
 void
-daemon_vprintf_level(const LEVEL *level, const char *message_fmt, va_list ap)
+daemon_vprintf_level(const Level *level, const char *message_fmt, va_list ap)
 {
-    if (level->val > loglevel) return;
+    if (level_int(level) > loglevel) return;
     if (logfacility)
     {
-	vsyslog(logfacility | level->val, message_fmt, ap);
+	vsyslog(logfacility | level_int(level), message_fmt, ap);
     }
     else
     {
-	fprintf(stderr, "[%s] ", strlvl[level->val]);
+	fprintf(stderr, "[%s] ", level_str(level));
 	vfprintf(stderr, message_fmt, ap);
 	fputs("\n", stderr);
     }
 }
 
 void
-daemon_printf_level(const LEVEL *level, const char *message_fmt, ...)
+daemon_printf_level(const Level *level, const char *message_fmt, ...)
 {
     va_list ap;
     va_start(ap, message_fmt);

@@ -4,7 +4,7 @@
 #define LLADCONF SYSCONFDIR "/llad/llad.conf"
 #define LLADCOMMANDS SYSCONFDIR "/llad/command"
 
-#ifndef __attribute__
+#ifndef __GNUC__
 #define __attribute__(x)
 #endif
 

@@ -13,12 +13,13 @@
 #include <sys/stat.h>
 #include <signal.h>
 
-static const char *daemonName = NULL;
-static int nodetach = 0;
-static char *pidfile = NULL;
-static int loglevel = LOG_INFO;
-static int logfacility = 0;
+static const char *daemonName = NULL;	/* name, eg. for logging */
+static int nodetach = 0;		/* flag, run in foreground if 1 */
+static char *pidfile = NULL;		/* pidfile location from popt */
+static int loglevel = LOG_INFO;		/* default log priority */
+static int logfacility = 0;		/* set to facility when log opened */
 
+/* default pidfile location */
 #define PIDFILE_DEFAULT RUNSTATEDIR "/%s.pid"
 
 struct level
@@ -55,6 +56,8 @@ static const char * const strlvl[] = {
     "DBG"
 };
 
+/* helptext about default pidfile location, use this buffer so it can depend
+ * on the daemon name */
 static char pidfileHelp[1024];
 #define PID_HLP_PATTERN "Write daemon pid to the file specified in <path>, " \
     "defaults to " RUNSTATEDIR \
@@ -75,13 +78,16 @@ const struct poptOption daemon_opts[] = {
     POPT_TABLEEND
 };
 
-static int cleanupInstalled = 0;
+static int cleanupInstalled = 0;    /* flag for static initialization */
+
+/* free popt arguments at exit */
 static void
 cleanup(void)
 {
     free(pidfile);
 }
 
+/* open syslog, set flag */
 static void
 loginit(void)
 {
@@ -92,6 +98,7 @@ loginit(void)
 const char *
 level_str(const Level *l)
 {
+    /* default level for NULL */
     if (!l) l = LEVEL_INFO;
     return strlvl[l->val];
 }
@@ -99,6 +106,7 @@ level_str(const Level *l)
 int
 level_int(const Level *l)
 {
+    /* default level for NULL */
     if (!l) l = LEVEL_INFO;
     return l->val;
 }
@@ -211,30 +219,36 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 
     if (!pidfile)
     {
+	/* use default pidfile name if not given as an option */
 	snprintf(pfnbuf, 1024, PIDFILE_DEFAULT, daemonName);
 	pfn = pfnbuf;
     }
     else if (strlen(pidfile) > 0)
     {
+	/* disable pidfile if empty string given */
 	pfn = pidfile;
     }
 
     if (!nodetach)
     {
+	/* default case -> fork into background */
 	if (pfn)
 	{
 	    pf = fopen(pfn, "r");
 	    if (pf)
 	    {
+		/* pidfile exists, try to read pid */
 		rc = fscanf(pf, "%d", &pid);
 		fclose(pf);
 
 		if (rc < 1 || kill(pid, 0) < 0)
 		{
+		    /* no pid readable or no process running with this pid */
 		    daemon_printf_level(LEVEL_WARNING,
 			    "Removing stale pidfile `%s'", pfn);
 		    if (unlink(pfn) < 0)
 		    {
+			/* error if file can't be deleted */
 			daemon_printf_level(LEVEL_CRIT,
 				"Error removing pidfile: %s", strerror(errno));
 			exit(EXIT_FAILURE);
@@ -242,6 +256,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 		}
 		else
 		{
+		    /* found running instance, exit now */
 		    daemon_printf_level(LEVEL_ERR,
 			    "%s seems to be running, check `%s'.",
 			    daemonName, pfn);
@@ -249,6 +264,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 		}
 	    }
 
+	    /* open for writing, so new pid can be written */
 	    pf = fopen(pfn, "w");
 
 	    if (!pf)
@@ -264,6 +280,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 
 	if (pid < 0)
 	{
+	    /* unable to fork is at least critical for a daemon */
 	    daemon_printf_level(LEVEL_CRIT,
 		    "fork() failed: %s", strerror(errno));
 	    if (pf) fclose(pf);
@@ -272,6 +289,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 
 	if (pid > 0)
 	{
+	    /* child forked, write pid to the file and exit */
 	    if (pf)
 	    {
 		fprintf(pf, "%d\n", pid);
@@ -281,11 +299,18 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 	    return EXIT_SUCCESS;
 	}
 
+	/* this code is executed as the child process */
+	/* first close pidfile */
 	if (pf) fclose(pf);
-	loginit();
-	umask(0);
-	sid = setsid();
 
+	/* initialize logging */
+	loginit();
+
+	/* reset creation mask */
+	umask(0);
+
+	/* become session leader */
+	sid = setsid();
 	if (sid < 0)
 	{
 	    daemon_printf_level(LEVEL_CRIT,
@@ -293,6 +318,8 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 	    exit(EXIT_FAILURE);
 	}
 
+	/* change working directory to root
+	 * (so no unmount can cause problems) */
 	if (chdir("/") < 0)
 	{
 	    daemon_printf_level(LEVEL_CRIT, 
@@ -300,6 +327,9 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 	    exit(EXIT_FAILURE);
 	}
 
+	/* ignore a lot of standard signals. They shouldn't stop the daemon.
+	 * daemon code is expected to install its own signal handlers as
+	 * needed, e.g. a handler for SIGTERM */
 	memset(&handler, 0, sizeof(handler));
 	handler.sa_handler = SIG_IGN;
 	sigemptyset(&(handler.sa_mask));
@@ -314,6 +344,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 
 	daemon_print("Daemon started -- forked into background.");
 
+	/* close the stdio streams */
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
 	close(STDERR_FILENO);
@@ -322,6 +353,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
     {
 	daemon_print_level(LEVEL_DEBUG, "Not forking into background.");
 
+	/* if not forking, at least create own process group */
 	if (setpgid(0,0) < 0)
 	{
 	    daemon_print_level(LEVEL_WARNING,
@@ -329,8 +361,10 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 	}
     }
 
+    /* execute main daemon code */
     rc = daemon_main(data);
 
+    /* and on exit, remove pidfile */
     if (!nodetach && pfn) unlink(pfn);
 
     return rc;

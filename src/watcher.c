@@ -12,56 +12,66 @@
 #include "daemon.h"
 #include "util.h"
 
+/* buffer size for reading events from inotify */
 #define EVENT_BUFSIZE 4096
 
+/* information about a watched directory */
 struct watcherDir;
 typedef struct watcherDir WatcherDir;
 
+/* information about a watched file */
 struct watcherFile;
 typedef struct watcherFile WatcherFile;
 
+/* information about Logfiles expected in a watched directory */
 struct watcherDirEntry;
 typedef struct watcherDirEntry WatcherDirEntry;
 
 struct watcherFile
 {
-    Logfile *logfile;
-    WatcherFile *next;
-    int inwd;
+    Logfile *logfile;	/* the Logfile */
+    WatcherFile *next;	/* next entry for watched file */
+    int inwd;		/* inotify watch descriptor */
 };
 
 struct watcherDirEntry
 {
-    Logfile *logfile;
-    WatcherDirEntry *next;
+    Logfile *logfile;	    /* the Logfile */
+    WatcherDirEntry *next;  /* next Logfile entry for this directory */
 };
 
 struct watcherDir
 {
-    WatcherDirEntry entry;
-    WatcherDir *next;
-    int inwd;
+    WatcherDirEntry entry;  /* first Logfile entry for this directory */
+    WatcherDir *next;	    /* next entry for watched directory */
+    int inwd;		    /* inotify watch descriptor */
 };
 
-static int Watcher_init(void);
-static void Watcher_done(void);
+static int Watcher_init(void);	/* initialize Watcher */
+static void Watcher_done(void);	/* destroy Watcher */
 
-static int infd = -1;
-static sig_atomic_t running = 0;
-static int lastSigNum = 0;
-static WatcherDir *firstDir = NULL;
-static WatcherFile *firstFile = NULL;
-static char evbuf[EVENT_BUFSIZE]
+static int infd = -1;			/* inotify file descriptor */
+static sig_atomic_t running = 0;	/* flag indicating running watcher */
+static int lastSigNum = 0;		/* number of the signal last received */
+static WatcherDir *firstDir = NULL;	/* first watched directory entry */
+static WatcherFile *firstFile = NULL;	/* first watched file entry */
+static char evbuf[EVENT_BUFSIZE]	/* inotify events buffer */
     __attribute__ ((aligned(__alignof__(struct inotify_event))));
 
 static void
 registerFile(Logfile *log)
 {
     WatcherFile *current = firstFile;
+
+    /* create new file watch entry */
     WatcherFile *next = lladAlloc(sizeof(WatcherFile));
     next->next = NULL;
     next->logfile = log;
+
+    /* add inotify watch for that file */
     next->inwd = inotify_add_watch(infd, logfile_name(log), IN_MODIFY);
+
+    /* append it to the list */
     if (current)
     {
 	while (current->next) current = current->next;
@@ -71,12 +81,15 @@ registerFile(Logfile *log)
     {
 	firstFile = next;
     }
+
     if (next->inwd > 0)
     {
+	/* watching now */
 	daemon_printf("Watching file `%s'", logfile_name(log));
     }
     else
     {
+	/* can't watch at the moment */
 	daemon_printf_level(LEVEL_NOTICE,
 		"Waiting to watch non-accessible or non-existent file `%s'",
 		logfile_name(log));
@@ -90,11 +103,14 @@ registerDir(Logfile *log)
     WatcherDirEntry *currentEntry, *nextEntry;
     WatcherDir *nextDir;
 
+    /* check whether this directory is already watched */
     while (current)
     {
 	if (!strcmp(logfile_dirName(current->entry.logfile),
 		    logfile_dirName(log)))
 	{
+	    /* if yes, just append new entry for this logfile to the
+	     * WatcherDir */
 	    nextEntry = lladAlloc(sizeof(WatcherDirEntry));
 	    nextEntry->next = NULL;
 	    nextEntry->logfile = log;
@@ -111,13 +127,34 @@ registerDir(Logfile *log)
     }
 
     current = firstDir;
+
+    /* otherwise create new directory watch entry */
     nextDir = lladAlloc(sizeof(WatcherDir));
     nextDir->next = NULL;
     nextDir->entry.next = NULL;
     nextDir->entry.logfile = log;
+
+    /* add inotify watch for the directory */
     nextDir->inwd = inotify_add_watch(infd, logfile_dirName(log),
 	    IN_CREATE | IN_ATTRIB | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO
 	    | IN_EXCL_UNLINK | IN_ONLYDIR);
+
+    if (nextDir->inwd > 0)
+    {
+	/* watching now */
+	daemon_printf("Watching directory `%s'", logfile_dirName(log));
+    }
+    else
+    {
+	/* "impossible case" ... Logfile guarantees an accessible directory */
+	daemon_printf_level(LEVEL_ALERT,
+		"Cannot watch directory `%s'. This should never happen!",
+		logfile_dirName(log));
+	free(nextDir);
+	return;
+    }
+
+    /* append it to the list */
     if (current)
     {
 	while (current->next) current = current->next;
@@ -127,22 +164,26 @@ registerDir(Logfile *log)
     {
 	firstDir = nextDir;
     }
-    if (nextDir->inwd > 0)
-    {
-	daemon_printf("Watching dir `%s'", logfile_dirName(log));
-    }
 }
 
 static void
 sighdl(int signum)
 {
+    /* record number of signal received */
     lastSigNum = signum;
-    running = 0;
+
+    /* on TERM and INT, set flag to "not running" */
+    if (signum == SIGTERM || signum == SIGINT)
+    {
+	running = 0;
+    }
 }
 
 static void
 initSignals(void)
 {
+    /* handle TERM, INT, HUP and USR1,
+     * block all standard signals while handling */
     struct sigaction handler;
     memset(&handler, 0, sizeof(handler));
     handler.sa_handler = &sighdl;
@@ -162,6 +203,7 @@ initSignals(void)
 static void
 doneSignals(void)
 {
+    /* set TERM, INT, HUP and USR1 back to being ignored */
     struct sigaction handler;
     memset(&handler, 0, sizeof(handler));
     handler.sa_handler = SIG_IGN;
@@ -178,6 +220,7 @@ Watcher_init(void)
     LogfileItor *i;
     Logfile *log;
 
+    /* initialize inotify */
     infd = inotify_init();
     if (infd < 0)
     {
@@ -185,6 +228,7 @@ Watcher_init(void)
 	return 0;
     }
 
+    /* iterate over Logfiles, add watchers for the files and directories */
     i = LogfileList_itor();
     while (logfileItor_moveNext(i))
     {
@@ -196,12 +240,14 @@ Watcher_init(void)
 
     if (!firstFile && !firstDir)
     {
+	/* nothing to watch means nothing to do at all -> misconfiguration */
 	daemon_print_level(LEVEL_ERR,
 		"Nothing to watch, check configuration.");
 	close(infd);
 	return 0;
     }
 
+    /* handle signals and set flag to "running" */
     initSignals();
     running = 1;
     return 1;
@@ -242,6 +288,7 @@ Watcher_done(void)
     infd = -1;
 }
 
+/* find file watcher entry by inotify watch descriptor */
 static WatcherFile *
 findFile(int wd)
 {
@@ -256,6 +303,7 @@ findFile(int wd)
     return curr;
 }
 
+/* find directory watcher entry by inotify watch descriptor */
 static WatcherDir *
 findDir(int wd)
 {
@@ -270,6 +318,7 @@ findDir(int wd)
     return curr;
 }
 
+/* handle modified file: scan it for new lines */
 static void
 fileModified(int inwd)
 {
@@ -277,6 +326,7 @@ fileModified(int inwd)
     if (wf) logfile_scan(wf->logfile, 0);
 }
 
+/* handle deleted file */
 static void
 fileDeleted(int inwd, const char *name)
 {
@@ -285,11 +335,13 @@ fileDeleted(int inwd, const char *name)
     WatcherDir *wd = findDir(inwd);
     if (wd)
     {
+	/* search entries of watched directory for filename */
 	entry = &(wd->entry);
 	while (entry)
 	{
 	    if (!strcmp(logfile_baseName(entry->logfile), name))
 	    {
+		/* found, search list of watched files for logfile */
 		wf = firstFile;
 		while (wf)
 		{
@@ -298,11 +350,14 @@ fileDeleted(int inwd, const char *name)
 		}
 		if (wf)
 		{
+		    /* found, remove inotify watch for this file */
 		    inotify_rm_watch(infd, wf->inwd);
 		    daemon_printf_level(LEVEL_NOTICE,
 			    "File `%s' disappeared, waiting to watch it again.",
 			    logfile_name(wf->logfile));
 		    wf->inwd = -1;
+
+		    /* and close it */
 		    logfile_close(wf->logfile);
 		}
 		break;
@@ -312,6 +367,7 @@ fileDeleted(int inwd, const char *name)
     }
 }
 
+/* handle new file in watched directory */
 static void
 fileCreated(int inwd, const char *name)
 {
@@ -320,11 +376,13 @@ fileCreated(int inwd, const char *name)
     WatcherDir *wd = findDir(inwd);
     if (wd)
     {
+	/* search entries of watched directory for filename */
 	entry = &(wd->entry);
 	while (entry)
 	{
 	    if (!strcmp(logfile_baseName(entry->logfile), name))
-	    {		
+	    {
+		/* found, search list of watched files for logfile */
 		wf = firstFile;
 		while (wf)
 		{
@@ -333,17 +391,20 @@ fileCreated(int inwd, const char *name)
 		}
 		if (wf && wf->inwd < 0)
 		{
+		    /* found if not currently watched, then add watch */
 		    wf->inwd = inotify_add_watch(infd,
-			    logfile_name(wf->logfile),
-			    IN_MODIFY | IN_MOVE_SELF | IN_DELETE_SELF);
+			    logfile_name(wf->logfile), IN_MODIFY);
 		    if (wf->inwd > 0)
 		    {
+			/* on success, directly scan the newly created file */
 			daemon_printf("Watching file `%s'",
 				logfile_name(wf->logfile));
 			logfile_scan(wf->logfile, 1);
 		    }
 		    else
 		    {
+			/* otherwise wait for changes making it accessible
+			 * to us */
 			daemon_printf_level(LEVEL_NOTICE,
 				"Waiting to watch non-accessible newly "
 				"created file `%s'",
@@ -357,6 +418,7 @@ fileCreated(int inwd, const char *name)
     }
 }
 
+/* main event loop of watcher */
 static void
 watchloop(void)
 {
@@ -364,28 +426,39 @@ watchloop(void)
     const struct inotify_event *ev;
     const char *sig;
 
+    /* only loop as long as the flag is set to "running" */
     while (running)
     {
+	/* read events */
 	/* EVENT_BUFSIZE should be smaller than MAX int value */
 	while ((chunk = (int) read(infd, &evbuf, EVENT_BUFSIZE)) > 0)
 	{
+	    /* iterate over events read */
 	    pos = 0;
 	    while (pos < chunk)
 	    {
 		ev = (void *)(&evbuf[pos]);
 		if (ev->len)
 		{
+		    /* ev->len means an event from a directory, containing a
+		     * file name in ev->name */
 		    if (ev->mask & (IN_MOVED_FROM | IN_DELETE))
 		    {
+			/* moved away or deleted is the same for us, handle
+			 * disappeared file */
 			fileDeleted(ev->wd, ev->name);
 		    }
 		    else if (ev->mask & (IN_MOVED_TO | IN_ATTRIB | IN_CREATE))
 		    {
+			/* moved here and created is the same for us, also
+			 * do the same on attribute changes because it COULD
+			 * have become readable */
 			fileCreated(ev->wd, ev->name);
 		    }
 		}
 		else if (ev->mask & IN_MODIFY)
 		{
+		    /* event from file itself, scan it when modified */
 		    fileModified(ev->wd);
 		}
 		pos += (int) sizeof(struct inotify_event) + (int) ev->len;
@@ -393,21 +466,26 @@ watchloop(void)
 	}
 	if (errno != EAGAIN && errno != EINTR)
 	{
+	    /* if not interrupted by a signal or temporary error, log the
+	     * error */
 	    daemon_perror("inotify read()");
 	    break;
 	}
 	else
 	{
+	    /* otherwise check signal */
 	    if (lastSigNum)
 	    {
 		sig = strsignal(lastSigNum);
 		lastSigNum = 0;
 		if (running)
 		{
+		    /* still running -> log ignored signal */
 		    daemon_printf("Ignoring signal %s", sig);
 		}
 		else
 		{
+		    /* not running any more -> log signal that stopped us */
 		    daemon_printf_level(LEVEL_NOTICE,
 			    "Received signal %s: stopping daemon.", sig);
 		}
@@ -419,7 +497,10 @@ watchloop(void)
 int
 Watcher_watchlogs(void)
 {
-    if(!Watcher_init()) return 0;
+    /* don't try to watch if initialization fails */
+    if (!Watcher_init()) return 0;
+
+    /* watch and clean up when done */
     watchloop();
     Watcher_done();
     return 1;

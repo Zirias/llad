@@ -19,11 +19,15 @@
 #include "daemon.h"
 #include "util.h"
 
+/* Maximum size a newly opened logfile can have, so we read it from the
+ * beginning. If it is bigger than this, just wait for new content */
 #define MAX_SCAN_COMPLETE_FILE 8192
+
+/* Size of the buffer for reading lines from a logfile */
 #define SCAN_BUFSIZE 4096
 
-static int noignore = 0;
-static char ignorepattern[128];
+static int noignore = 0;	/* flag for not ignoring "own" log lines */
+static char ignorepattern[128];	/* pattern for recognizing "own" log lines */
 
 const struct poptOption logfile_opts[] = {
     {"no-ignore", '\0', POPT_ARG_NONE, &noignore, 0,
@@ -38,21 +42,22 @@ const struct poptOption logfile_opts[] = {
 
 struct logfile
 {
-    char *name;
-    char *dirName;
-    char *baseName;
-    FILE *file;
-    Action *first;
-    Logfile *next;
+    char *name;		/* canonic full name of the logfile */
+    char *dirName;	/* canonic directory name of the logfile */
+    char *baseName;	/* base filename of the logfile */
+    FILE *file;		/* stream for reading the logfile */
+    Action *first;	/* first Action for the logfile */
+    Logfile *next;	/* next Logfile in the list */
 };
 
 struct logfileItor
 {
-    Logfile *current;
+    Logfile *current;	/* current Logfile */
 };
 
-static Logfile *firstLog = NULL;
+static Logfile *firstLog = NULL;    /* first Logfile in the list */
 
+/* create Action objects from configuration of a Logfile section */
 static Action *
 createActions(const CfgLog *cl)
 {
@@ -86,17 +91,20 @@ logfile_new(const CfgLog *cl)
 
     if (!action)
     {
+	/* a logfile without actions doesn't have to be watched */
 	daemon_printf_level(LEVEL_WARNING,
 		"Ignoring `%s' without actions.", cfgLog_name(cl));
 	return NULL;
     }
 
+    /* calculate paths */
     tmp = lladCloneString(cfgLog_name(cl));
     baseName = basename(tmp);
     dirName = realpath(dirname(tmp), NULL);
 
     if (!dirName)
     {
+	/* at least the directory has to exist */
 	daemon_printf_level(LEVEL_WARNING,
 		"Can't get real directory of `%s': %s", tmp, strerror(errno));
 	free(tmp);
@@ -106,6 +114,7 @@ logfile_new(const CfgLog *cl)
 
     if (stat(dirName, &st) < 0)
     {
+	/* and the directory has to be accessible */
 	daemon_printf_level(LEVEL_WARNING,
 		"Could not stat `%s': %s", dirName, strerror(errno));
 	free(dirName);
@@ -116,6 +125,7 @@ logfile_new(const CfgLog *cl)
 
     if (!S_ISDIR(st.st_mode))
     {
+	/* and it has to actually BE a directory */
 	daemon_printf_level(LEVEL_WARNING,
 		"%s: Not a directory", dirName);
 	free(dirName);
@@ -124,16 +134,19 @@ logfile_new(const CfgLog *cl)
 	return NULL;
     }
 
+    /* determine canonical path name */
     realName = lladAlloc(strlen(dirName) + strlen(baseName) + 2);
     strcpy(realName, dirName);
     strcat(realName, "/");
     strcat(realName, baseName);
 
+    /* check whether this logfile is already in the list */
     curr = firstLog;
     while (curr)
     {
 	if (!strcmp(curr->name, realName))
 	{
+	    /* if it is, append actions there */
 	    free(realName);
 	    free(dirName);
 	    free(tmp);
@@ -150,6 +163,7 @@ logfile_new(const CfgLog *cl)
 	curr = curr->next;
     }
 
+    /* otherwise, create new Logfile object */
     self = lladAlloc(sizeof(Logfile));
     self->name = realName;
     self->dirName = dirName;
@@ -157,6 +171,7 @@ logfile_new(const CfgLog *cl)
     free(tmp);
     self->file = NULL;
 
+    /* try to open it directly for reading */
     if ((self->file = fopen(self->name, "r")))
     {
 	fd = fileno(self->file);
@@ -165,6 +180,8 @@ logfile_new(const CfgLog *cl)
     }
     else
     {
+	/* it's ok if this isn't possible -- the directory should be watched
+	 * and maybe we can open it later */
 	daemon_printf_level(LEVEL_NOTICE,
 		"Could not open `%s': %s", self->name, strerror(errno));
     }
@@ -208,12 +225,15 @@ LogfileList_init(void)
     CfgLogItor *li;
     const CfgLog *cl;
 
+    /* if already initialized, first free the previous list */
     if (firstLog) LogfileList_done();
 
+    /* determine pattern for recognizing own log entries */
     snprintf(ignorepattern, 128, "%s[%d]:", daemon_name(), getpid());
 
     curr = NULL;
 
+    /* iterate over Logfile config sections, create objects */
     li = Config_cfgLogItor();
     while (cfgLogItor_moveNext(li))
     {
@@ -289,6 +309,7 @@ logfile_scan(Logfile *self, int reopen)
     struct stat st;
     int fd;
 
+    /* if the file is opened and reopening is requested, close it */
     if (reopen && self->file)
     {
 	daemon_printf_level(LEVEL_NOTICE, "Reopening %s", self->name);
@@ -298,58 +319,78 @@ logfile_scan(Logfile *self, int reopen)
 
     if (!self->file)
     {
+	/* try opening the file if it's not currently opened */
 	self->file = fopen(self->name, "r");
 	if (!self->file)
 	{
+	    /* warn if it can't be opened and give up */
 	    daemon_printf_level(LEVEL_WARNING,
 		    "Could not open `%s': %s", self->name, strerror(errno));
 	    return;
 	}
+
+	/* set to non-blocking I/O, just in case ... we never want to block
+	 * on read */
 	fd = fileno(self->file);
 	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+
+	/* put file pointer to the end of the file */
 	fseeko(self->file, 0L, SEEK_END);
 	if (ftello(self->file) <= MAX_SCAN_COMPLETE_FILE)
 	{
+	    /* if the file is small enough (for example it just appeared newly
+	     * because of a logrotate), start reading at the beginning */
 	    rewind(self->file);
 	}
 	else return;
     }
     else
     {
+	/*check file size */
 	fstat(fileno(self->file), &st);
 	if (st.st_size < ftello(self->file))
 	{
+	    /* smaller than previously? -> handle truncation, reopen */
 	    daemon_printf_level(LEVEL_NOTICE,
 		    "%s: truncation detected", self->name);
 	    fclose(self->file);
 	    self->file = fopen(self->name, "r");
 	    if (!self->file)
 	    {
+		/* warn if it can't be opened and give up */
 		daemon_printf_level(LEVEL_WARNING,
 			"Could not open `%s': %s", self->name, strerror(errno));
 		return;
 	    }
+
+	    /* non-blocking I/O */
 	    fd = fileno(self->file);
 	    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+
+	    /* in case of truncation, always start at the new end */
 	    fseeko(self->file, 0L, SEEK_END);
 	    return;
 	}
     }
 
+    /* actually read new lines from file */
     while (fgets(buf, SCAN_BUFSIZE, self->file))
     {
+	/* skip own log lines if not configured otherwise */
 	if (!noignore && strstr(buf, ignorepattern)) continue;
 
 #ifdef DEBUG
 	daemon_printf_level(LEVEL_DEBUG,
 		"[logfile.c] [%s] got line: %s", self->name, buf);
 #endif
+	/* pass each line to all actions for pattern matching */
 	action_matchAndExecChain(self->first, self->name, buf);
 	errno = 0;
     }
 
     if (errno && errno != EWOULDBLOCK && errno != EAGAIN)
     {
+	/* ignore temporary errors, log other errors */
 	daemon_printf_level(LEVEL_NOTICE,
 		"Can't read from `%s': %s", self->name, strerror(errno));
     }

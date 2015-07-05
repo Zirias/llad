@@ -54,8 +54,9 @@ typedef struct cfgActItor CfgActItor;
  * and parses the config file.
  * @memberof Config
  * @static
+ * @returns 1 on success, 0 on error
  */
-void Config_init(void);
+int Config_init(void);
 
 /** static destruction of Config.
  * should be called when the config file values are no longer needed, frees all

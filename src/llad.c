@@ -11,6 +11,7 @@
 #include "watcher.h"
 #include "util.h"
 
+/* libpopt table including options from all modules */
 static const struct poptOption opts[] = {
     ACTION_OPTS
     CONFIG_OPTS
@@ -20,6 +21,7 @@ static const struct poptOption opts[] = {
     POPT_TABLEEND
 };
 
+/* main routine of the daemon */
 static int
 svcmain(void *data)
 {
@@ -31,6 +33,8 @@ svcmain(void *data)
 
     if ((rc = Watcher_watchlogs()))
     {
+	/* only wait if Watcher ran successfully, otherwise there can be no
+	 * actions launched. */
 	rc = Action_waitForPending();
     }
 
@@ -48,8 +52,10 @@ main(int argc, const char **argv)
     poptContext ctx;
     char *cmd = lladCloneString(argv[0]);
 
+    /* set daemon name from command invoked, normally `llad' */
     daemon_init(basename(cmd));
 
+    /* handle command line arguments using libpopt */
     ctx = poptGetContext(cmd, argc, argv, opts, 0);
     prc = poptGetNextOpt(ctx);
     if (prc < -1)
@@ -57,17 +63,28 @@ main(int argc, const char **argv)
 	daemon_printf_level(LEVEL_ERR, "Option `%s': %s",
 		poptBadOption(ctx, POPT_BADOPTION_NOALIAS),
 		poptStrerror(prc));
+	poptFreeContext(ctx);
 	free(cmd);
 	return EXIT_FAILURE;
     }
     else
     {
+	/* hack around popGetNextOpt() allocating memory even when assignment
+	 * is made from popt table */
 	free(poptGetOptArg(ctx));
     }
 
-    Config_init();
-    rc = daemon_daemonize(&svcmain, NULL);
-    Config_done();
+    /* load configuration file before launching daemon, so it doesn't even
+     * start when there are errors. */
+    if (Config_init())
+    {
+	rc = daemon_daemonize(&svcmain, NULL);
+	Config_done();
+    }
+    else
+    {
+	rc = EXIT_FAILURE;
+    }
 
     poptFreeContext(ctx);
 

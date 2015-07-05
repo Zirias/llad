@@ -204,7 +204,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 
     if (!daemonName)
     {
-	daemon_print_level(LEVEL_ERR, "Can't daemonize, daemon.c was not "
+	daemon_print_level(LEVEL_CRIT, "Can't daemonize, daemon.c was not "
 		"initialized! Call daemon_init() before daemon_daemonize()!");
 	exit(EXIT_FAILURE);
     }
@@ -235,7 +235,8 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 			    "Removing stale pidfile `%s'", pfn);
 		    if (unlink(pfn) < 0)
 		    {
-			daemon_perror("Error removing pidfile");
+			daemon_printf_level(LEVEL_CRIT,
+				"Error removing pidfile: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		    }
 		}
@@ -252,7 +253,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 
 	    if (!pf)
 	    {
-		daemon_printf_level(LEVEL_ERR,
+		daemon_printf_level(LEVEL_CRIT,
 			"Error opening pidfile `%s' for writing: %s",
 			pfn, strerror(errno));
 		exit(EXIT_FAILURE);
@@ -263,7 +264,8 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 
 	if (pid < 0)
 	{
-	    daemon_perror("fork()");
+	    daemon_printf_level(LEVEL_CRIT,
+		    "fork() failed: %s", strerror(errno));
 	    if (pf) fclose(pf);
 	    exit(EXIT_FAILURE);
 	}
@@ -286,13 +288,15 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 
 	if (sid < 0)
 	{
-	    daemon_perror("setsid()");
+	    daemon_printf_level(LEVEL_CRIT,
+		    "setsid() failed: %s", strerror(errno));
 	    exit(EXIT_FAILURE);
 	}
 
 	if (chdir("/") < 0)
 	{
-	    daemon_perror("chdir(\"/\")");
+	    daemon_printf_level(LEVEL_CRIT, 
+		    "chdir(\"/\") failed: %s", strerror(errno));
 	    exit(EXIT_FAILURE);
 	}
 

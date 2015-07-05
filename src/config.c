@@ -213,7 +213,7 @@ parseWord(char **pos)
     if (**pos)
     {
 	/* end of parsing buffer reached -> error */
-	daemon_print_level(LEVEL_ERR, "Buffer full reading configuration.");
+	daemon_print_level(LEVEL_CRIT, "Buffer full reading configuration.");
 	exit(EXIT_FAILURE);
     }
 

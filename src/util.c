@@ -1,6 +1,7 @@
 #include "util.h"
 
 #include <string.h>
+#include <errno.h>
 
 #include "daemon.h"
 
@@ -10,7 +11,8 @@ lladAlloc(size_t size)
     void *alloc = malloc(size);
     if (!alloc)
     {
-	daemon_perror("Fatal: Could not allocate memory");
+	daemon_printf_level(LEVEL_CRIT,
+		"Could not allocate memory: %s", strerror(errno));
 	exit(EXIT_FAILURE);
     }
     return alloc;

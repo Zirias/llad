@@ -15,7 +15,7 @@
 
 static const char *daemonName = NULL;
 static int nodetach = 0;
-static const char *pidfile = NULL;
+static char *pidfile = NULL;
 static int loglevel = LOG_INFO;
 static int logfacility = 0;
 
@@ -79,7 +79,7 @@ static int cleanupInstalled = 0;
 static void
 cleanup(void)
 {
-    free((void *)pidfile);
+    free(pidfile);
 }
 
 static void

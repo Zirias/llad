@@ -6,7 +6,7 @@
 #include "daemon.h"
 #include "common.h"
 
-static const char *configFile = NULL;
+static char *configFile = NULL;
 static const char *cfgFile;
 
 const struct poptOption config_opts[] = {
@@ -44,7 +44,7 @@ static void
 cleanup(void)
 {
     Config_done();
-    free((void *)configFile);
+    free(configFile);
 }
 
 static char *

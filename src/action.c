@@ -66,7 +66,7 @@ static int classInitialized = 0;
 static void
 cleanup(void)
 {
-    free((void *)cmdpath);
+    free(cmdpath);
 }
 
 static int numThreads = 0;

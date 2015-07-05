@@ -42,16 +42,6 @@ static CfgLog *firstCfgLog = NULL;  /* first logfile section in config */
 static int lineNumber = 0;	    /* current line number while parsing */
 static int actionInProgress = 0;    /* if 1, action still parsing */
 
-static int cleanupInstalled = 0;    /* flag for static initialization */
-
-/* free resources at exit */
-static void
-cleanup(void)
-{
-    Config_done();
-    free(configFile);
-}
-
 /* put next "meaningful" line in buf */
 static char *
 nextLine(char *buf, FILE *cfg, int fullLine)
@@ -665,12 +655,6 @@ Config_init(void)
 
     if (firstCfgLog) Config_done();
 
-    if (!cleanupInstalled)
-    {
-	cleanupInstalled = 1;
-	atexit(&cleanup);
-    }
-
     /* prefer option over compile-time configuration
      * for config file location */
     if (configFile)
@@ -781,5 +765,12 @@ const char *
 cfgAct_command(const CfgAct *self)
 {
     return self->command;
+}
+
+void
+Config_atexit(void)
+{
+    Config_done();
+    free(configFile);
 }
 

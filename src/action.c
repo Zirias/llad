@@ -64,13 +64,6 @@ const struct poptOption action_opts[] = {
 
 static int classInitialized = 0; /* flag for static initialization */
 
-/* free popt arguments at exit */
-static void
-cleanup(void)
-{
-    free(cmdpath);
-}
-
 static int numThreads = 0;		/* current number of running threads */
 static pthread_mutex_t numThreadsLock	/* mutex for numThreads */
 	= PTHREAD_MUTEX_INITIALIZER;
@@ -138,7 +131,6 @@ action_appendNew(Action *self, const CfgAct *cfgAct)
     if (!classInitialized)
     {
 	classInitialized = 1;
-	atexit(&cleanup);
 	sem_init(&threadsLock, 0, 1); /* unlocked -> no threads running */
 	sem_init(&forceExit, 0, 0);   /* locked -> not shutting down */
     }
@@ -588,5 +580,11 @@ Action_waitForPending(void)
 
     /* all fine, return TRUE */
     return 1;
+}
+
+void
+Action_atexit(void)
+{
+    free(cmdpath);
 }
 

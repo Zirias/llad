@@ -86,4 +86,10 @@ void action_free(Action *self);
  */
 int Action_waitForPending(void);
 
+/** Call this at exit for final cleanup.
+ * @memberof Action
+ * @static
+ */
+void Action_atexit(void);
+
 #endif

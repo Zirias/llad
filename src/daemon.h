@@ -178,5 +178,11 @@ void daemon_perror(const char *message);
  */
 const char *daemon_name(void);
 
+/** Call this at exit for final cleanup.
+ * @memberof Daemon
+ * @static
+ */
+void Daemon_atexit(void);
+
 #endif
 

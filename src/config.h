@@ -152,4 +152,10 @@ const char *cfgAct_pattern(const CfgAct *self);
  */
 const char *cfgAct_command(const CfgAct *self);
 
+/** Call this at exit for final cleanup.
+ * @memberof Config
+ * @static
+ */
+void Config_atexit(void);
+
 #endif

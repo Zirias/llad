@@ -78,15 +78,6 @@ const struct poptOption daemon_opts[] = {
     POPT_TABLEEND
 };
 
-static int cleanupInstalled = 0;    /* flag for static initialization */
-
-/* free popt arguments at exit */
-static void
-cleanup(void)
-{
-    free(pidfile);
-}
-
 /* open syslog, set flag */
 static void
 loginit(void)
@@ -183,12 +174,6 @@ daemon_printf(const char *message_fmt, ...)
 void
 daemon_init(const char *name)
 {
-    if (!cleanupInstalled)
-    {
-	cleanupInstalled = 1;
-	atexit(&cleanup);
-    }
-
     if (!name)
     {
 	daemon_print_level(LEVEL_ERR, "Daemon initialization failed, "
@@ -374,5 +359,11 @@ const char *
 daemon_name(void)
 {
     return daemonName;
+}
+
+void
+Daemon_atexit(void)
+{
+    free(pidfile);
 }
 

@@ -88,6 +88,11 @@ main(int argc, const char **argv)
 
     poptFreeContext(ctx);
 
+    /* call final cleanup routines */
+    Action_atexit();
+    Config_atexit();
+    Daemon_atexit();
+
     free(cmd);
     return rc;
 }

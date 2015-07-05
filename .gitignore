@@ -1,7 +1,8 @@
 *.swp
+conf.mk
 sbin/*
 obj/*
-conf.mk
+doxydoc/*
 debian/llad/*
 debian/*.log
 debian/*.debhelper

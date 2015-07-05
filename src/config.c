@@ -183,7 +183,7 @@ parseWord(char **pos)
 	    /* clone read word */
 	    word = lladCloneString(st.buf);
 #ifdef DEBUG
-	    daemon_printf_level(LEVEL_DEBUG,
+	    Daemon_printf_level(LEVEL_DEBUG,
 		    "[config.c] parseWord(): found `%s'", word);
 #endif
 	    /* reinitialize state */
@@ -203,12 +203,12 @@ parseWord(char **pos)
     if (**pos)
     {
 	/* end of parsing buffer reached -> error */
-	daemon_print_level(LEVEL_CRIT, "Buffer full reading configuration.");
+	Daemon_print_level(LEVEL_CRIT, "Buffer full reading configuration.");
 	exit(EXIT_FAILURE);
     }
 
 #ifdef DEBUG
-    daemon_print_level(LEVEL_DEBUG, "[config.c] parseWord(): incomplete");
+    Daemon_print_level(LEVEL_DEBUG, "[config.c] parseWord(): incomplete");
 #endif
 
     /* no complete word read before end of input string -> return nothing
@@ -283,12 +283,12 @@ parseActions(CfgLog *log, char *line)
 		    {
 			/* empty name -> error */
 			free(st.name);
-			daemon_printf_level(LEVEL_ERR,
+			Daemon_printf_level(LEVEL_ERR,
 				"Error in `%s': Expected action name in line "
 				"%d, got `%c'", cfgFile, lineNumber, *ptr);
 			return -1;
 		    }
-		    daemon_printf_level(LEVEL_DEBUG,
+		    Daemon_printf_level(LEVEL_DEBUG,
 			    "[config.c] Found action: %s", st.name);
 		    /* name found -> transition to ST_NAME */
 		    st.step = ST_NAME;
@@ -314,7 +314,7 @@ parseActions(CfgLog *log, char *line)
 		{
 		    /* error */
 		    free(st.name);
-		    daemon_printf_level(LEVEL_ERR,
+		    Daemon_printf_level(LEVEL_ERR,
 			    "Error in `%s': Unexpected `%c' in line %d, "
 			    "expected `='",
 			    cfgFile, *ptr, lineNumber);
@@ -334,7 +334,7 @@ parseActions(CfgLog *log, char *line)
 		{
 		    /* error */
 		    free(st.name);
-		    daemon_printf_level(LEVEL_ERR,
+		    Daemon_printf_level(LEVEL_ERR,
 			    "Error in `%s': Unexpected `%c' in line %d, "
 			    "expected `{'",
 			    cfgFile, *ptr, lineNumber);
@@ -366,7 +366,7 @@ parseActions(CfgLog *log, char *line)
 			nextAction->pattern = st.pattern;
 			nextAction->command = st.command;
 			nextAction->next = NULL;
-			daemon_printf_level(LEVEL_DEBUG,
+			Daemon_printf_level(LEVEL_DEBUG,
 				"[config.c] pattern: `%s' command: `%s'",
 				st.pattern, st.command);
 
@@ -376,7 +376,7 @@ parseActions(CfgLog *log, char *line)
 		    else
 		    {
 			/* error -> incomplete block */
-			daemon_printf_level(LEVEL_ERR,
+			Daemon_printf_level(LEVEL_ERR,
 				"Error in `%s': Incomplete action `%s' "
 				"at line %d.",
 				cfgFile, st.name, lineNumber);
@@ -404,7 +404,7 @@ parseActions(CfgLog *log, char *line)
 			free(st.blockname);
 			free(st.command);
 			free(st.pattern);
-			daemon_printf_level(LEVEL_ERR,
+			Daemon_printf_level(LEVEL_ERR,
 				"Error in `%s': Expected config value in line "
 				"%d, got `%c'.", cfgFile, lineNumber, *ptr);
 			return -1;
@@ -416,7 +416,7 @@ parseActions(CfgLog *log, char *line)
 			if (st.pattern)
 			{
 			    /* already got pattern for this action -> error */
-			    daemon_printf_level(LEVEL_ERR,
+			    Daemon_printf_level(LEVEL_ERR,
 				    "Error in `%s': Found second pattern for "
 				    "action `%s' in line %d",
 				    cfgFile, st.name, lineNumber);
@@ -438,7 +438,7 @@ parseActions(CfgLog *log, char *line)
 			if (st.command)
 			{
 			    /* already got pattern for this action -> error */
-			    daemon_printf_level(LEVEL_ERR,
+			    Daemon_printf_level(LEVEL_ERR,
 				    "Error in `%s': Found second command for "
 				    "action `%s' in line %d",
 				    cfgFile, st.name, lineNumber);
@@ -461,7 +461,7 @@ parseActions(CfgLog *log, char *line)
 			free(st.command);
 			free(st.pattern);
 			free(st.name);
-			daemon_printf_level(LEVEL_ERR,
+			Daemon_printf_level(LEVEL_ERR,
 				"Error in `%s': Unknown config value `%s' in "
 				"line %d", cfgFile, st.blockname, lineNumber);
 			free(st.blockname);
@@ -489,7 +489,7 @@ parseActions(CfgLog *log, char *line)
 		{
 		    /* error */
 		    free(st.name);
-		    daemon_printf_level(LEVEL_ERR,
+		    Daemon_printf_level(LEVEL_ERR,
 			    "Error in `%s': Unexpected `%c' in line %d, "
 			    "expected `='",
 			    cfgFile, *ptr, lineNumber);
@@ -507,13 +507,13 @@ parseActions(CfgLog *log, char *line)
 			free(st.name);
 			if (st.blockval == &(st.command))
 			{
-			    daemon_printf_level(LEVEL_ERR,
+			    Daemon_printf_level(LEVEL_ERR,
 				    "Error in `%s': Expected command in line "
 				    "%d, got `%c'", cfgFile, lineNumber, *ptr);
 			}
 			else
 			{
-			    daemon_printf_level(LEVEL_ERR,
+			    Daemon_printf_level(LEVEL_ERR,
 				    "Error in `%s': Expected pattern in line "
 				    "%d, got `%c'", cfgFile, lineNumber, *ptr);
 			}
@@ -557,7 +557,7 @@ loadConfigEntries(FILE *cfg)
 	    if (actionInProgress)
 	    {
 		/* new section while action is incomplete is an error */
-		daemon_printf_level(LEVEL_ERR,
+		Daemon_printf_level(LEVEL_ERR,
 			"Error in `%s': Found '[' before action block was "
 			"completed in line %d.", cfgFile, lineNumber);
 		return 0;
@@ -570,7 +570,7 @@ loadConfigEntries(FILE *cfg)
 		{
 		    /* found -> create new Logfile section object */
 		    *ptr2 = '\0';
-		    daemon_printf_level(LEVEL_DEBUG,
+		    Daemon_printf_level(LEVEL_DEBUG,
 			    "[config.c] Found logfile section: %s", ptr);
 		    if (currentLog)
 		    {
@@ -590,7 +590,7 @@ loadConfigEntries(FILE *cfg)
 	    }
 
 	    /* missing ']' -> error */
-	    daemon_printf_level(LEVEL_ERR,
+	    Daemon_printf_level(LEVEL_ERR,
 		    "Error in `%s': '[' without matching ']' in line %d.",
 		    cfgFile, lineNumber);
 	    return 0;
@@ -607,7 +607,7 @@ loadConfigNext:;
     if (actionInProgress)
     {
 	/* end of file while action is incompete -> error */
-	daemon_printf_level(LEVEL_ERR,
+	Daemon_printf_level(LEVEL_ERR,
 		"Error in `%s': Unexpected end of file before action block "
 		"was completed.", cfgFile);
 	return 0;
@@ -678,7 +678,7 @@ Config_init(void)
     }
     else
     {
-	daemon_printf_level(LEVEL_ERR,
+	Daemon_printf_level(LEVEL_ERR,
 		"Could not read `%s': %s", cfgFile, strerror(errno));
 	return 0;
     }

@@ -85,12 +85,12 @@ registerFile(Logfile *log)
     if (next->inwd > 0)
     {
 	/* watching now */
-	daemon_printf("Watching file `%s'", logfile_name(log));
+	Daemon_printf("Watching file `%s'", logfile_name(log));
     }
     else
     {
 	/* can't watch at the moment */
-	daemon_printf_level(LEVEL_NOTICE,
+	Daemon_printf_level(LEVEL_NOTICE,
 		"Waiting to watch non-accessible or non-existent file `%s'",
 		logfile_name(log));
     }
@@ -142,12 +142,12 @@ registerDir(Logfile *log)
     if (nextDir->inwd > 0)
     {
 	/* watching now */
-	daemon_printf("Watching directory `%s'", logfile_dirName(log));
+	Daemon_printf("Watching directory `%s'", logfile_dirName(log));
     }
     else
     {
 	/* "impossible case" ... Logfile guarantees an accessible directory */
-	daemon_printf_level(LEVEL_ALERT,
+	Daemon_printf_level(LEVEL_ALERT,
 		"Cannot watch directory `%s'. This should never happen!",
 		logfile_dirName(log));
 	free(nextDir);
@@ -224,7 +224,7 @@ Watcher_init(void)
     infd = inotify_init();
     if (infd < 0)
     {
-	daemon_perror("inotify_init()");
+	Daemon_perror("inotify_init()");
 	return 0;
     }
 
@@ -241,7 +241,7 @@ Watcher_init(void)
     if (!firstFile && !firstDir)
     {
 	/* nothing to watch means nothing to do at all -> misconfiguration */
-	daemon_print_level(LEVEL_ERR,
+	Daemon_print_level(LEVEL_ERR,
 		"Nothing to watch, check configuration.");
 	close(infd);
 	return 0;
@@ -352,7 +352,7 @@ fileDeleted(int inwd, const char *name)
 		{
 		    /* found, remove inotify watch for this file */
 		    inotify_rm_watch(infd, wf->inwd);
-		    daemon_printf_level(LEVEL_NOTICE,
+		    Daemon_printf_level(LEVEL_NOTICE,
 			    "File `%s' disappeared, waiting to watch it again.",
 			    logfile_name(wf->logfile));
 		    wf->inwd = -1;
@@ -397,7 +397,7 @@ fileCreated(int inwd, const char *name)
 		    if (wf->inwd > 0)
 		    {
 			/* on success, directly scan the newly created file */
-			daemon_printf("Watching file `%s'",
+			Daemon_printf("Watching file `%s'",
 				logfile_name(wf->logfile));
 			logfile_scan(wf->logfile, 1);
 		    }
@@ -405,7 +405,7 @@ fileCreated(int inwd, const char *name)
 		    {
 			/* otherwise wait for changes making it accessible
 			 * to us */
-			daemon_printf_level(LEVEL_NOTICE,
+			Daemon_printf_level(LEVEL_NOTICE,
 				"Waiting to watch non-accessible newly "
 				"created file `%s'",
 				logfile_name(wf->logfile));
@@ -468,7 +468,7 @@ watchloop(void)
 	{
 	    /* if not interrupted by a signal or temporary error, log the
 	     * error */
-	    daemon_perror("inotify read()");
+	    Daemon_perror("inotify read()");
 	    break;
 	}
 	else
@@ -481,12 +481,12 @@ watchloop(void)
 		if (running)
 		{
 		    /* still running -> log ignored signal */
-		    daemon_printf("Ignoring signal %s", sig);
+		    Daemon_printf("Ignoring signal %s", sig);
 		}
 		else
 		{
 		    /* not running any more -> log signal that stopped us */
-		    daemon_printf_level(LEVEL_NOTICE,
+		    Daemon_printf_level(LEVEL_NOTICE,
 			    "Received signal %s: stopping daemon.", sig);
 		}
 	    }

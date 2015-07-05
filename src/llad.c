@@ -40,7 +40,7 @@ svcmain(void *data)
 
     LogfileList_done();
 
-    daemon_print("Daemon stopped");
+    Daemon_print("Daemon stopped");
 
     return rc ? EXIT_SUCCESS : EXIT_FAILURE;
 }
@@ -53,14 +53,14 @@ main(int argc, const char **argv)
     char *cmd = lladCloneString(argv[0]);
 
     /* set daemon name from command invoked, normally `llad' */
-    daemon_init(basename(cmd));
+    Daemon_init(basename(cmd));
 
     /* handle command line arguments using libpopt */
     ctx = poptGetContext(cmd, argc, argv, opts, 0);
     prc = poptGetNextOpt(ctx);
     if (prc < -1)
     {
-	daemon_printf_level(LEVEL_ERR, "Option `%s': %s",
+	Daemon_printf_level(LEVEL_ERR, "Option `%s': %s",
 		poptBadOption(ctx, POPT_BADOPTION_NOALIAS),
 		poptStrerror(prc));
 	poptFreeContext(ctx);
@@ -80,7 +80,7 @@ main(int argc, const char **argv)
      * start when there are errors. */
     if (Config_init())
     {
-	rc = daemon_daemonize(&svcmain, NULL);
+	rc = Daemon_daemonize(&svcmain, NULL);
 	Config_done();
     }
     else

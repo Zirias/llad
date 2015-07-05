@@ -107,7 +107,7 @@ int level_int(const Level *l);
  * @static
  * @param name the name of the daemon (used e.g. for logging)
  */
-void daemon_init(const char *name);
+void Daemon_init(const char *name);
 
 /** Daemonize (fork into background).
  * This method does everything a daemon should do at startup like forking
@@ -118,14 +118,14 @@ void daemon_init(const char *name);
  * @param daemon_main the code the daemon should execute
  * @param data optional argument for daemon_main
  */
-int daemon_daemonize(const daemon_loop daemon_main, void *data);
+int Daemon_daemonize(const daemon_loop daemon_main, void *data);
 
 /** Print message with standard log level.
  * @memberof Daemon
  * @static
  * @param message the message to print
  */
-void daemon_print(const char *message);
+void Daemon_print(const char *message);
 
 /** Print message with given log level.
  * @memberof Daemon
@@ -133,7 +133,7 @@ void daemon_print(const char *message);
  * @param level the log level
  * @param message the message to print
  */
-void daemon_print_level(const Level *level, const char *message);
+void Daemon_print_level(const Level *level, const char *message);
 
 /** Print formatted message with given log level.
  * @memberof Daemon
@@ -141,7 +141,7 @@ void daemon_print_level(const Level *level, const char *message);
  * @param message_fmt printf()-compatible format string
  * @param ... values to be formatted
  */
-void daemon_printf(const char *message_fmt, ...)
+void Daemon_printf(const char *message_fmt, ...)
     __attribute__((format(printf, 1, 2)));
 
 /** Print formatted message with given log level.
@@ -151,7 +151,7 @@ void daemon_printf(const char *message_fmt, ...)
  * @param message_fmt printf()-compatible format string
  * @param ... values to be formatted
  */
-void daemon_printf_level(const Level *level, const char *message_fmt, ...)
+void Daemon_printf_level(const Level *level, const char *message_fmt, ...)
     __attribute__((format(printf, 2, 3)));
 
 /** Print formatted message with given log level, stdargs version.
@@ -161,7 +161,7 @@ void daemon_printf_level(const Level *level, const char *message_fmt, ...)
  * @param message_fmt printf()-compatible format string
  * @param ap values to be formatted
  */
-void daemon_vprintf_level(const Level *level, const char *message_fmt,
+void Daemon_vprintf_level(const Level *level, const char *message_fmt,
 	va_list ap);
 
 /** Print error message.
@@ -169,14 +169,14 @@ void daemon_vprintf_level(const Level *level, const char *message_fmt,
  * @static
  * @param message the error message, a description of errno is appended
  */
-void daemon_perror(const char *message);
+void Daemon_perror(const char *message);
 
 /** the name of the daemon.
  * @memberof Daemon
  * @static
  * @returns name of the daemon
  */
-const char *daemon_name(void);
+const char *Daemon_name(void);
 
 /** Call this at exit for final cleanup.
  * @memberof Daemon

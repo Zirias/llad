@@ -103,7 +103,7 @@ level_int(const Level *l)
 }
 
 void
-daemon_perror(const char *message)
+Daemon_perror(const char *message)
 {
     if (loglevel < LOG_ERR) return;
     if (logfacility)
@@ -117,7 +117,7 @@ daemon_perror(const char *message)
 }
 
 void
-daemon_print_level(const Level *level, const char *message)
+Daemon_print_level(const Level *level, const char *message)
 {
     if (level_int(level) > loglevel) return;
     if (logfacility)
@@ -132,7 +132,7 @@ daemon_print_level(const Level *level, const char *message)
 
 
 void
-daemon_vprintf_level(const Level *level, const char *message_fmt, va_list ap)
+Daemon_vprintf_level(const Level *level, const char *message_fmt, va_list ap)
 {
     if (level_int(level) > loglevel) return;
     if (logfacility)
@@ -148,35 +148,35 @@ daemon_vprintf_level(const Level *level, const char *message_fmt, va_list ap)
 }
 
 void
-daemon_printf_level(const Level *level, const char *message_fmt, ...)
+Daemon_printf_level(const Level *level, const char *message_fmt, ...)
 {
     va_list ap;
     va_start(ap, message_fmt);
-    daemon_vprintf_level(level, message_fmt, ap);
+    Daemon_vprintf_level(level, message_fmt, ap);
     va_end(ap);
 }
 
 void
-daemon_print(const char *message)
+Daemon_print(const char *message)
 {
-    daemon_print_level(LEVEL_INFO, message);
+    Daemon_print_level(LEVEL_INFO, message);
 }
 
 void
-daemon_printf(const char *message_fmt, ...)
+Daemon_printf(const char *message_fmt, ...)
 {
     va_list ap;
     va_start(ap, message_fmt);
-    daemon_vprintf_level(LEVEL_INFO, message_fmt, ap);
+    Daemon_vprintf_level(LEVEL_INFO, message_fmt, ap);
     va_end(ap);
 }
 
 void
-daemon_init(const char *name)
+Daemon_init(const char *name)
 {
     if (!name)
     {
-	daemon_print_level(LEVEL_ERR, "Daemon initialization failed, "
+	Daemon_print_level(LEVEL_ERR, "Daemon initialization failed, "
 		"no daemon name given!");
 	exit(EXIT_FAILURE);
     }
@@ -186,7 +186,7 @@ daemon_init(const char *name)
 }
 
 int
-daemon_daemonize(const daemon_loop daemon_main, void *data)
+Daemon_daemonize(const daemon_loop daemon_main, void *data)
 {
     pid_t pid, sid;
     struct sigaction handler;
@@ -197,7 +197,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 
     if (!daemonName)
     {
-	daemon_print_level(LEVEL_CRIT, "Can't daemonize, daemon.c was not "
+	Daemon_print_level(LEVEL_CRIT, "Can't daemonize, daemon.c was not "
 		"initialized! Call daemon_init() before daemon_daemonize()!");
 	exit(EXIT_FAILURE);
     }
@@ -229,12 +229,12 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 		if (rc < 1 || kill(pid, 0) < 0)
 		{
 		    /* no pid readable or no process running with this pid */
-		    daemon_printf_level(LEVEL_WARNING,
+		    Daemon_printf_level(LEVEL_WARNING,
 			    "Removing stale pidfile `%s'", pfn);
 		    if (unlink(pfn) < 0)
 		    {
 			/* error if file can't be deleted */
-			daemon_printf_level(LEVEL_CRIT,
+			Daemon_printf_level(LEVEL_CRIT,
 				"Error removing pidfile: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		    }
@@ -242,7 +242,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 		else
 		{
 		    /* found running instance, exit now */
-		    daemon_printf_level(LEVEL_ERR,
+		    Daemon_printf_level(LEVEL_ERR,
 			    "%s seems to be running, check `%s'.",
 			    daemonName, pfn);
 		    exit(EXIT_FAILURE);
@@ -254,7 +254,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 
 	    if (!pf)
 	    {
-		daemon_printf_level(LEVEL_CRIT,
+		Daemon_printf_level(LEVEL_CRIT,
 			"Error opening pidfile `%s' for writing: %s",
 			pfn, strerror(errno));
 		exit(EXIT_FAILURE);
@@ -266,7 +266,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 	if (pid < 0)
 	{
 	    /* unable to fork is at least critical for a daemon */
-	    daemon_printf_level(LEVEL_CRIT,
+	    Daemon_printf_level(LEVEL_CRIT,
 		    "fork() failed: %s", strerror(errno));
 	    if (pf) fclose(pf);
 	    exit(EXIT_FAILURE);
@@ -298,7 +298,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 	sid = setsid();
 	if (sid < 0)
 	{
-	    daemon_printf_level(LEVEL_CRIT,
+	    Daemon_printf_level(LEVEL_CRIT,
 		    "setsid() failed: %s", strerror(errno));
 	    exit(EXIT_FAILURE);
 	}
@@ -307,7 +307,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 	 * (so no unmount can cause problems) */
 	if (chdir("/") < 0)
 	{
-	    daemon_printf_level(LEVEL_CRIT, 
+	    Daemon_printf_level(LEVEL_CRIT, 
 		    "chdir(\"/\") failed: %s", strerror(errno));
 	    exit(EXIT_FAILURE);
 	}
@@ -327,7 +327,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 	sigaction(SIGSTOP, &handler, NULL);
 #endif
 
-	daemon_print("Daemon started -- forked into background.");
+	Daemon_print("Daemon started -- forked into background.");
 
 	/* close the stdio streams */
 	close(STDIN_FILENO);
@@ -336,12 +336,12 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
     }
     else
     {
-	daemon_print_level(LEVEL_DEBUG, "Not forking into background.");
+	Daemon_print_level(LEVEL_DEBUG, "Not forking into background.");
 
 	/* if not forking, at least create own process group */
 	if (setpgid(0,0) < 0)
 	{
-	    daemon_print_level(LEVEL_WARNING,
+	    Daemon_print_level(LEVEL_WARNING,
 		    "Unable to start process group.");
 	}
     }
@@ -356,7 +356,7 @@ daemon_daemonize(const daemon_loop daemon_main, void *data)
 }
 
 const char *
-daemon_name(void)
+Daemon_name(void)
 {
     return daemonName;
 }

@@ -12,7 +12,7 @@ lladAlloc(size_t size)
     if (!alloc)
     {
 	/* best thing to do on out of memory -> fail quickly */
-	daemon_printf_level(LEVEL_CRIT,
+	Daemon_printf_level(LEVEL_CRIT,
 		"Could not allocate memory: %s", strerror(errno));
 	exit(EXIT_FAILURE);
     }

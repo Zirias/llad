@@ -99,7 +99,7 @@ action_appendNew(Action *self, const CfgAct *cfgAct)
     re = pcre_compile(cfgAct_pattern(cfgAct), 0, &error, &erroffset, NULL);
     if (!re)
     {
-	daemon_printf_level(LEVEL_WARNING,
+	Daemon_printf_level(LEVEL_WARNING,
 		"Action `%s' error in pattern: %s",
 		cfgAct_name(cfgAct), error);
 	return NULL;
@@ -207,7 +207,7 @@ actionWaitEndLoop(pid_t pid, int *status, int maxwait)
 	if (rc < 0)
 	{
 	    /* error waiting */
-	    daemon_perror("waidpid()");
+	    Daemon_perror("waidpid()");
 	    return -1;
 	}
 	if (rc == (int)pid && (WIFEXITED(*status) || WIFSIGNALED(*status)))
@@ -236,7 +236,7 @@ actionWaitEnd(struct actionExecArgs *args, pid_t pid)
     if (!rc)
     {
 	/* not yet exited, send SIGTERM and wait again */
-	daemon_printf_level(LEVEL_NOTICE,
+	Daemon_printf_level(LEVEL_NOTICE,
 		"[%s] %s still running, sending SIGTERM to %d...",
 		args->actname, args->cmdname, pid);
 	kill(pid, SIGTERM);
@@ -246,7 +246,7 @@ actionWaitEnd(struct actionExecArgs *args, pid_t pid)
     if (!rc)
     {
 	/* not yet exited, send SIGKILL and wait until child died */
-	daemon_printf_level(LEVEL_WARNING,
+	Daemon_printf_level(LEVEL_WARNING,
 		"[%s] %s still running, sending SIGKILL to %d...",
 		args->actname, args->cmdname, pid);
 	kill(pid, SIGKILL);
@@ -259,20 +259,20 @@ actionWaitEnd(struct actionExecArgs *args, pid_t pid)
 	retcode = WEXITSTATUS(status);
 	if (retcode)
 	{
-	    daemon_printf_level(LEVEL_NOTICE,
+	    Daemon_printf_level(LEVEL_NOTICE,
 		    "[%s] %s (%d) failed with exit code %d.",
 		    args->actname, args->cmdname, pid, retcode);
 	}
 	else
 	{
-	    daemon_printf("[%s] %s (%d) completed successfully.",
+	    Daemon_printf("[%s] %s (%d) completed successfully.",
 		    args->actname, args->cmdname, pid);
 	}
     }
     else if (WIFSIGNALED(status))
     {
 	retcode = WTERMSIG(status);
-	daemon_printf_level(LEVEL_NOTICE,
+	Daemon_printf_level(LEVEL_NOTICE,
 		"[%s] %s (%d) was terminated by signal %s.",
 		args->actname, args->cmdname, pid, strsignal(retcode));
     }
@@ -350,21 +350,21 @@ actionExec(void *argsPtr)
     struct actionExecArgs *args = argsPtr;
 
 #ifdef DEBUG
-    daemon_printf_level(LEVEL_DEBUG,
+    Daemon_printf_level(LEVEL_DEBUG,
 	    "[action.c] Thread for action `%s' started.",
 	    args->actname);
 #endif
 
     if (pipe(fds) < 0)
     {
-	daemon_perror("pipe()");
+	Daemon_perror("pipe()");
 	goto actionExec_done;
     }
 
     pid = fork();
     if (pid < 0)
     {
-	daemon_perror("fork()");
+	Daemon_perror("fork()");
 	close(fds[0]);
 	close(fds[1]);
 	goto actionExec_done;
@@ -390,13 +390,13 @@ actionExec(void *argsPtr)
 		len = (int)strlen(buf);
 		if (buf[len-1] == '\n') buf[len-1] = '\0';
 		if (buf[len-2] == '\r') buf[len-2] = '\0';
-		daemon_printf("[%s] [%s:%d] %s",
+		Daemon_printf("[%s] [%s:%d] %s",
 			args->actname, args->cmdname, pid, buf);
 	    }
 	    if (!rc)
 	    {
 		/* readLine() == 0 means timeout occured */
-		daemon_printf_level(LEVEL_NOTICE,
+		Daemon_printf_level(LEVEL_NOTICE,
 			"[%s] %s (%d) created no output for %d seconds, "
 			"closing pipe.",
 			args->actname, args->cmdname, pid, waitOutput);
@@ -468,7 +468,7 @@ action_matchAndExecChain(Action *self, const char *logname, const char *line)
 		self->ovec, (int)self->ovecsize);
 	if (rc > 0)
 	{
-	    daemon_printf("[%s]: Action `%s' matched, executing `%s'.",
+	    Daemon_printf("[%s]: Action `%s' matched, executing `%s'.",
 		    logname, cfgAct_name(self->cfgAct),
 		    cfgAct_command(self->cfgAct));
 
@@ -493,7 +493,7 @@ action_matchAndExecChain(Action *self, const char *logname, const char *line)
 			PTHREAD_CREATE_DETACHED) != 0
 		    || pthread_create(&thread, &attr, &actionExec, args) != 0)
 	    {
-		daemon_printf_level(LEVEL_WARNING,
+		Daemon_printf_level(LEVEL_WARNING,
 			"[%s]: Unable to create thread for action `%s', "
 			"giving up.", logname, cfgAct_name(self->cfgAct));
 
@@ -542,15 +542,15 @@ Action_waitForPending(void)
 	/* threads are running, calculate absolute timeout */
 	if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
 	{
-	    daemon_perror("clock_gettime()");
+	    Daemon_perror("clock_gettime()");
 	    return 0;
 	}
 	ts.tv_sec += exitWait;
 
-	daemon_print("Waiting for pending actions to finish ...");
+	Daemon_print("Waiting for pending actions to finish ...");
 	if (sem_timedwait(&threadsLock, &ts) < 0)
 	{
-	    daemon_printf_level(LEVEL_NOTICE,
+	    Daemon_printf_level(LEVEL_NOTICE,
 		    "Pending actions after %d seconds, closing pipes.",
 		    exitWait);
 
@@ -561,21 +561,21 @@ Action_waitForPending(void)
 	    /* and calculate absolute timeout until all should have finished */
 	    if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
 	    {
-		daemon_perror("clock_gettime()");
+		Daemon_perror("clock_gettime()");
 		return 0;
 	    }
 	    ts.tv_sec += termWait + pipeWait + 2;
 
 	    if (sem_timedwait(&threadsLock, &ts) < 0)
 	    {
-		daemon_print_level(LEVEL_ERR,
+		Daemon_print_level(LEVEL_ERR,
 			"Still pending actions, giving up.");
 
 		/* if threads are STILL running, this is an error condition */
 		return 0;
 	    }
 	}
-	daemon_print("All actions finished.");
+	Daemon_print("All actions finished.");
     }
 
     /* all fine, return TRUE */

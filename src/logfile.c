@@ -92,7 +92,7 @@ logfile_new(const CfgLog *cl)
     if (!action)
     {
 	/* a logfile without actions doesn't have to be watched */
-	daemon_printf_level(LEVEL_WARNING,
+	Daemon_printf_level(LEVEL_WARNING,
 		"Ignoring `%s' without actions.", cfgLog_name(cl));
 	return NULL;
     }
@@ -105,7 +105,7 @@ logfile_new(const CfgLog *cl)
     if (!dirName)
     {
 	/* at least the directory has to exist */
-	daemon_printf_level(LEVEL_WARNING,
+	Daemon_printf_level(LEVEL_WARNING,
 		"Can't get real directory of `%s': %s", tmp, strerror(errno));
 	free(tmp);
 	action_free(action);
@@ -115,7 +115,7 @@ logfile_new(const CfgLog *cl)
     if (stat(dirName, &st) < 0)
     {
 	/* and the directory has to be accessible */
-	daemon_printf_level(LEVEL_WARNING,
+	Daemon_printf_level(LEVEL_WARNING,
 		"Could not stat `%s': %s", dirName, strerror(errno));
 	free(dirName);
 	free(tmp);
@@ -126,7 +126,7 @@ logfile_new(const CfgLog *cl)
     if (!S_ISDIR(st.st_mode))
     {
 	/* and it has to actually BE a directory */
-	daemon_printf_level(LEVEL_WARNING,
+	Daemon_printf_level(LEVEL_WARNING,
 		"%s: Not a directory", dirName);
 	free(dirName);
 	free(tmp);
@@ -182,7 +182,7 @@ logfile_new(const CfgLog *cl)
     {
 	/* it's ok if this isn't possible -- the directory should be watched
 	 * and maybe we can open it later */
-	daemon_printf_level(LEVEL_NOTICE,
+	Daemon_printf_level(LEVEL_NOTICE,
 		"Could not open `%s': %s", self->name, strerror(errno));
     }
 
@@ -229,7 +229,7 @@ LogfileList_init(void)
     if (firstLog) LogfileList_done();
 
     /* determine pattern for recognizing own log entries */
-    snprintf(ignorepattern, 128, "%s[%d]:", daemon_name(), getpid());
+    snprintf(ignorepattern, 128, "%s[%d]:", Daemon_name(), getpid());
 
     curr = NULL;
 
@@ -312,7 +312,7 @@ logfile_scan(Logfile *self, int reopen)
     /* if the file is opened and reopening is requested, close it */
     if (reopen && self->file)
     {
-	daemon_printf_level(LEVEL_NOTICE, "Reopening %s", self->name);
+	Daemon_printf_level(LEVEL_NOTICE, "Reopening %s", self->name);
 	fclose(self->file);
 	self->file = NULL;
     }
@@ -324,7 +324,7 @@ logfile_scan(Logfile *self, int reopen)
 	if (!self->file)
 	{
 	    /* warn if it can't be opened and give up */
-	    daemon_printf_level(LEVEL_WARNING,
+	    Daemon_printf_level(LEVEL_WARNING,
 		    "Could not open `%s': %s", self->name, strerror(errno));
 	    return;
 	}
@@ -351,14 +351,14 @@ logfile_scan(Logfile *self, int reopen)
 	if (st.st_size < ftello(self->file))
 	{
 	    /* smaller than previously? -> handle truncation, reopen */
-	    daemon_printf_level(LEVEL_NOTICE,
+	    Daemon_printf_level(LEVEL_NOTICE,
 		    "%s: truncation detected", self->name);
 	    fclose(self->file);
 	    self->file = fopen(self->name, "r");
 	    if (!self->file)
 	    {
 		/* warn if it can't be opened and give up */
-		daemon_printf_level(LEVEL_WARNING,
+		Daemon_printf_level(LEVEL_WARNING,
 			"Could not open `%s': %s", self->name, strerror(errno));
 		return;
 	    }
@@ -380,7 +380,7 @@ logfile_scan(Logfile *self, int reopen)
 	if (!noignore && strstr(buf, ignorepattern)) continue;
 
 #ifdef DEBUG
-	daemon_printf_level(LEVEL_DEBUG,
+	Daemon_printf_level(LEVEL_DEBUG,
 		"[logfile.c] [%s] got line: %s", self->name, buf);
 #endif
 	/* pass each line to all actions for pattern matching */
@@ -391,7 +391,7 @@ logfile_scan(Logfile *self, int reopen)
     if (errno && errno != EWOULDBLOCK && errno != EAGAIN)
     {
 	/* ignore temporary errors, log other errors */
-	daemon_printf_level(LEVEL_NOTICE,
+	Daemon_printf_level(LEVEL_NOTICE,
 		"Can't read from `%s': %s", self->name, strerror(errno));
     }
 }

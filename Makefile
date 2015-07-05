@@ -1,9 +1,8 @@
 CC := gcc
 
-CFLAGS += -std=c99 -Wall -Wextra -Wformat=2 \
-	  -Wno-unknown-warning -Wno-unknown-warning-option -Winit-self \
+CFLAGS += -std=c99 -Wall -Wextra -Wformat=2 -Winit-self \
 	  -Wdeclaration-after-statement -Wshadow -Wbad-function-cast \
-	  -Wwrite-strings -Wconversion -Wlogical-op -pedantic
+	  -Wwrite-strings -Wconversion -pedantic
 
 CCDEP := $(CC) -MM
 
@@ -22,13 +21,7 @@ VTAGS :=
 V := 0
 
 ifdef DEBUG
-CFLAGS += -Werror -pedantic-errors -Wsuggest-attribute=pure \
-	  -Wsuggest-attribute=const -Wsuggest-attribute=noreturn \
-	  -Wsuggest-attribute=format -Wpadded \
-	  -Wno-error=suggest-attribute=pure \
-	  -Wno-error=suggest-attribute=const \
-	  -Wno-error=suggest-attribute=noreturn \
-	  -Wno-error=suggest-attribute=format \
+CFLAGS += -Werror -pedantic-errors -Wno-error=format-nonliteral -Wpadded \
 	  -Wno-error=padded -DDEBUG -g3 -O0
 VTAGS += [debug]
 else

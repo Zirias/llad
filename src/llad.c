@@ -74,6 +74,8 @@ main(int argc, const char **argv)
 	free(poptGetOptArg(ctx));
     }
 
+    poptFreeContext(ctx);
+
     /* load configuration file before launching daemon, so it doesn't even
      * start when there are errors. */
     if (Config_init())
@@ -85,8 +87,6 @@ main(int argc, const char **argv)
     {
 	rc = EXIT_FAILURE;
     }
-
-    poptFreeContext(ctx);
 
     /* call final cleanup routines */
     Action_atexit();

@@ -459,7 +459,7 @@ action_free(Action *self)
     }
 }
 
-void
+int
 Action_waitForPending(void)
 {
     struct timespec ts;
@@ -469,7 +469,7 @@ Action_waitForPending(void)
 	if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
 	{
 	    daemon_perror("clock_gettime()");
-	    return;
+	    return 0;
 	}
 	ts.tv_sec += exitWait;
 
@@ -483,17 +483,18 @@ Action_waitForPending(void)
 	    if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
 	    {
 		daemon_perror("clock_gettime()");
-		return;
+		return 0;
 	    }
 	    ts.tv_sec += termWait + pipeWait + 2;
 
 	    if (sem_timedwait(&threadsLock, &ts) < 0)
 	    {
 		daemon_print_level(LEVEL_ERR, "Still pending actions, giving up.");
-		return;
+		return 0;
 	    }
 	}
 	daemon_print("All actions finished.");
     }
+    return 1;
 }
 

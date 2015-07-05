@@ -78,10 +78,12 @@ void action_free(Action *self);
  * This method checks whether there are Actions executing in the background
  * and if so, waits for their completion. After a given timeout (configurable
  * through a libpopt option, default is 20 seconds), the Actions will close
- * their pipes.
+ * their pipes and waiting continues long enough to give them time to be killed
+ * by the controlling thread if necessary.
  * @memberof Action
  * @static
+ * @returns 1 on success, 0 on error
  */
-void Action_waitForPending(void);
+int Action_waitForPending(void);
 
 #endif

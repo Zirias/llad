@@ -23,20 +23,22 @@ static const struct poptOption opts[] = {
 static int
 svcmain(void *data)
 {
+    int rc;
+
     (void)(data); /* unused */
 
     LogfileList_init();
 
-    if (Watcher_watchlogs())
+    if ((rc = Watcher_watchlogs()))
     {
-	Action_waitForPending();
+	rc = Action_waitForPending();
     }
 
     LogfileList_done();
 
     daemon_print("Daemon stopped");
 
-    return EXIT_SUCCESS;
+    return rc ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 int

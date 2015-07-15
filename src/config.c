@@ -671,6 +671,7 @@ Config_init(void)
     {
 	if (!loadConfigEntries(cfg))
 	{
+	    fclose(cfg);
 	    Config_done();
 	    return 0;
 	}
